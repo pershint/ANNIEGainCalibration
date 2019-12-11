@@ -1,0 +1,32 @@
+{
+    "Gauss2":{
+        "Channel":[],
+        "FitType":[],
+        "RunNumber":[],
+        "LEDsOn":[],
+        "LEDPINs":[],
+        "Date":[],
+        "c1Height":[],
+        "c1Mu":[],
+        "c1Sigma":[],
+        "c2Height":[],
+        "c2Mu":[],
+        "c2Sigma":[],
+        "c3Height":[],
+        "c3Mu":[],
+        "c3Sigma":[]
+    },
+    "Gauss3":{
+        "Channel":[],
+        "FitType":[],
+        "RunNumber":[],
+        "LEDsOn":[],
+        "LEDPINs":[],
+        "Date":[],
+        "c1Height":[],
+        "c1Mu":[],
+        "c1Sigma":[],
+        "c2Height":[],
+        "c2Mu":[],
+        "c2Sigma":[],
+}

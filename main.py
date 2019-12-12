@@ -1,10 +1,13 @@
+import numpy as np
 import json
+import ROOT
+import sys
+
 import lib.ArgParser as ap
 import lib.Functions as fu
 import lib.GainFinder as gf
 import lib.ParamInput as pin
-import ROOT
-import sys
+import lib.Plots as pl
 
 if __name__=='__main__':
     print(" ###### WELCOME TO ANNIE GAIN CALIBRATION ###### ")
@@ -12,10 +15,10 @@ if __name__=='__main__':
         print(" ####### APPENDING NEW INFO TO GAIN DATABASE ####### ")
     with open(ap.APPEND,"r") as f:
         myfile = ROOT.TFile.Open(ap.APPEND)
-        runnum = str(input("Input run number: "))
-        date = str(input("Input date of run (MM/DD/YYYY): "))
-        fittype = str(input("Fit type to perform (2Gauss, 3Gauss) "))
-        if fittype not in ["2Gauss","3Gauss"]:
+        runnum = str(raw_input("Input run number: "))
+        date = str(raw_input("Input date of run (MM/DD/YYYY): "))
+        fittype = str(raw_input("Fit type to perform (Gauss2, Gauss3): "))
+        if fittype not in ["Gauss2","Gauss3"]:
             print("Please input a valid fitting approach to take.")
             sys.exit(0)
     with open(ap.DB) as dbfile:
@@ -26,26 +29,31 @@ if __name__=='__main__':
 
     GainFinder = gf.GainFinder(myfile)
     if(fittype == "Gauss2"):
-        GainFinder.SetFitFunction(fu.gauss2)
-        GainFinder.SetInitialParams(fu.gauss2InitialParams)
+        GainFinder.setFitFunction(fu.gauss2)
+        GainFinder.setInitialFitParams(fu.gauss2InitialParams)
+        print(fu.gauss2InitialParams)
     if(fittype == "Gauss3"):
-        GainFinder.SetFitFunction(fu.gauss3)
-        GainFinder.SetInitialParams(fu.gauss3InitialParams)
-    GainFinder.setHistString("hist_charges_CNUM") #FIXME: Make a configurable?
+        GainFinder.setFitFunction(fu.gauss3)
+        GainFinder.setInitialFitParams(fu.gauss3InitialParams)
+    thehist_title = "hist_charge_CNUM" #FIXME: Make a configurable somehow
     #loop through each channel, show the histogram, and ask whether to use 
     #Default fitting params
-    for channel in channel_list:
-        thehist = self.hist_string.replace("CNUM",str(channel_num))
+    for channel_num in channel_list:
+        thehist = thehist_title.replace("CNUM",str(channel_num))
         if not myfile.GetListOfKeys().Contains(thehist):
             print("HISTOGRAM %s NOT FOUND.  SKIPPING"%(thehist))
             continue
+        FitComplete = False
         while not FitComplete:
-            UseDefault = str(input("Use default fit parameters? [y/N]"))
+            UseDefault = str(raw_input("Use default fit parameters? [y/N]"))
             if UseDefault in ["y","Y","yes","Yes","YES"]:
                 popt,pcov,xdata,ydata,y_unc = GainFinder.FitHistogram(thehist)
             elif UseDefault in ["n","N","No","no","NO"]:
                 InitialParams = pin.GetInitialParameters(fittype)
                 popt,pcov,xdata,ydata,y_unc = GainFinder.FitHistogram(thehist)
+            if popt is not None:
+                FitComplete = True
+            print("BEST FIT PARAMS: " + str(popt))
             pl.PlotHistAndFit(xdata,ydata,GainFinder.fitfunc,xdata,popt)
     print(runnum)
     print(date)

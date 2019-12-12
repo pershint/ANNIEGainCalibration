@@ -28,5 +28,6 @@
         "c1Sigma":[],
         "c2Height":[],
         "c2Mu":[],
-        "c2Sigma":[],
+        "c2Sigma":[]
+    }
 }

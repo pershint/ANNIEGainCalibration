@@ -1,18 +1,13 @@
 import scipy.optimize as scp
+import numpy as np
 
 class GainFinder(object):
     def __init__(self, ROOTFile):
         self.ROOTFile = ROOTFile
+        self.initial_params = []
         self.hist_string = "hist_charge_CNUM"
         self.fitfunc = None
-        self.initial_params = []
 
-    def setHistString(self,hist_string):
-        '''Set the name of the histograms that will have fits performed on them.
-           Place CNUM where the channel number is defined in the string.  
-           Example: setHistString("hist_charge_CNUM")
-           '''
-           self.hist_string = hist_string
 
     def setFitFunction(self,fitfunc):
         self.fitfunc = fitfunc
@@ -33,6 +28,10 @@ class GainFinder(object):
         bin_centers = np.array(bin_centers)
         evts = np.array(evts)
         evts_unc = np.array(evts_unc)
-        popt, pcov = scp.curve_fit(self.fitfunc, bin_centers, evts, p0=self.initial_params,
-                     sigma=evts_unc,maxfev=6000)
+        try:
+            popt, pcov = scp.curve_fit(self.fitfunc, bin_centers, evts, p0=self.initial_params,
+                         maxfev=6000)
+        except RuntimeError:
+            print("NO SUCCESSFUL FIT AFTER ITERATIONS...")
+            return np.ones(12)*-9999, None,None,None,None
         return popt, pcov, bin_centers, evts, evts_unc

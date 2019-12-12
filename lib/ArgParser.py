@@ -15,7 +15,7 @@ parser.add_argument("-a", "--append",action="store",dest="APPEND",
                   type=str,
                   help="Path to a ROOT file holding new charge information for tubes")
 
-parser.set_defaults(DB="./DB/TransparencyRuns.json",APPEND=None,debug="False")
+parser.set_defaults(DB="./DB/TransparencyGains.json",APPEND=None,debug="False")
 args = parser.parse_args()
 DB = args.DB
 APPEND = args.APPEND

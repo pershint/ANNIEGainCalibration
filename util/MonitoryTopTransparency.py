@@ -107,9 +107,9 @@ if __name__ == "__main__":
         dates.append(date)
         print("RESULT IS: ")
         print(ndpd.loc[ndpd["date"] == date, 'PE'])
-        date_sums.append(float((ndpd.loc[(ndpd["date"] == date) & (ndpd["channel"]!=360), 'PE'].sum())))
-        QToPE_err = np.linalg.norm((ndpd.loc[(ndpd["date"] == date) & (ndpd["channel"]!=360), 'PEUnc']))
-        IErr = np.sqrt((date_sums[j]*0.05)**2)
+        date_sums.append(float((ndpd.loc[(ndpd["date"] == date), 'PE'].sum())))
+        QToPE_err = np.linalg.norm((ndpd.loc[(ndpd["date"] == date), 'PEUnc']))
+        IErr = np.sqrt((date_sums[j]*0.005)**2)
         date_stdevs.append(np.sqrt(QToPE_err**2 + IErr**2))
 
     fig,ax = plt.subplots()
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     ax.set_ylabel("Total Avg. PE per flash")
     plt.xticks(rotation='30',fontsize=12)
     plt.title(("Mean PE seen by all ETEL tubes per LED flash \n" +
-        "LED 6 only (PIN 3500), without Channel 360"))
+        "LED 6 only (PIN 3500)"))
     plt.show()
     
     fig,ax = plt.subplots()

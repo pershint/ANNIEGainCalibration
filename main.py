@@ -72,6 +72,7 @@ if __name__=='__main__':
                 FitComplete = True
             if popt is not None:
                 FitComplete = True
+        pl.PlotHistPEDAndPEs(xdata,ydata,pedopt,popt)
     #Since we've made it out, save to the DB
         db[fittype]["Channel"].append(channel_num)
         db[fittype]["RunNumber"].append(runnum)

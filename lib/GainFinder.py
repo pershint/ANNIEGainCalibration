@@ -84,18 +84,25 @@ class GainFinder(object):
         thehist =  self.ROOTFile.Get(HistName)
         #Get histogram information into ntuples
         bin_centers, evts,evts_unc =(), (), () #pandas wants ntuples
+        fit_bin_centers, fit_evts,fit_evts_unc =(), (), () #pandas wants ntuples
         for i in xrange(int(thehist.GetNbinsX()+1)):
             if i==0:
-                continue
-            if exclude_ped is True and ((float(thehist.GetBinWidth(i))/2.0) + \
-                    float(thehist.GetBinLowEdge(i)) < (self.ped_mean + 7*self.ped_sigma)):
                 continue
             bin_centers =  bin_centers + ((float(thehist.GetBinWidth(i))/2.0) + float(thehist.GetBinLowEdge(i)),)
             evts = evts + (thehist.GetBinContent(i),)
             evts_unc = evts_unc + (thehist.GetBinError(i),)
+            if exclude_ped is True and ((float(thehist.GetBinWidth(i))/2.0) + \
+                    float(thehist.GetBinLowEdge(i)) < (self.ped_mean + 7*self.ped_sigma)):
+                continue
+            fit_bin_centers =  fit_bin_centers + ((float(thehist.GetBinWidth(i))/2.0) + float(thehist.GetBinLowEdge(i)),)
+            fit_evts = fit_evts + (thehist.GetBinContent(i),)
+            fit_evts_unc = fit_evts_unc + (thehist.GetBinError(i),)
         bin_centers = np.array(bin_centers)
         evts = np.array(evts)
         evts_unc = np.array(evts_unc)
+        fit_bin_centers = np.array(fit_bin_centers)
+        fit_evts = np.array(fit_evts)
+        fit_evts_unc = np.array(fit_evts_unc)
         if subtract_ped == True:
             #Subtract off the pedestal
             ped_sub_evts = copy.deepcopy(evts)
@@ -111,9 +118,9 @@ class GainFinder(object):
 
         try:
             if self.lower_bounds is None or self.upper_bounds is None:
-                popt, pcov = scp.curve_fit(self.fitfunc, bin_centers, evts, p0=self.initial_params, maxfev=6000)
+                popt, pcov = scp.curve_fit(self.fitfunc, fit_bin_centers, fit_evts, p0=self.initial_params, maxfev=6000)
             else:
-                popt, pcov = scp.curve_fit(self.fitfunc, bin_centers, evts, p0=self.initial_params,
+                popt, pcov = scp.curve_fit(self.fitfunc, fit_bin_centers, fit_evts, p0=self.initial_params,
                       bounds=(self.lower_bounds,self.upper_bounds),maxfev=6000)
         except RuntimeError:
             print("NO SUCCESSFUL FIT AFTER ITERATIONS...")

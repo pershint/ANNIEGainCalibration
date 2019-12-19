@@ -2,6 +2,7 @@ import scipy.optimize as scp
 import numpy as np
 import Functions as fu
 import copy
+import matplotlib.pyplot as plt
 
 class GainFinder(object):
     def __init__(self, ROOTFile):
@@ -86,15 +87,21 @@ class GainFinder(object):
         self.ped_fit_y =fu.gauss1(self.ped_fit_x,popt[0],popt[1],popt[2]) 
         self.ped_mean = popt[1]
         self.ped_sigma = popt[2]
+        #self.ped_fit_y =fu.OrderStat(self.ped_fit_x,popt[0],popt[1],popt[2],popt[3]) 
+        #self.ped_mean = popt[2]
+        #self.ped_sigma = popt[3]
         if fit_tail is True:
-            exp_ind = np.where((bin_centers > self.ped_mean + 4*self.ped_sigma) & (bin_centers < fit_range[1]))[0]
+            exp_ind = np.where((bin_centers > self.ped_mean + 3*self.ped_sigma) & (bin_centers < fit_range[1]))[0]
             exp_bins = bin_centers[exp_ind]
             exp_evts = evts[exp_ind]
             exp_init_params = [popt[0]/popt[2],popt[2],10*popt[1]]
+            #exp_init_params = [popt[0]/popt[3],popt[3],10*popt[2]]
             print("EXPONENTIAL FIT: INIT PARAMS: " + str(exp_init_params))
             try:
                 eopt, ecov = scp.curve_fit(lambda x,D,tau,t: fu.gaussPlusExpo(x,popt[0],popt[1],popt[2],D,tau,t), 
                         exp_bins, exp_evts, p0=exp_init_params, maxfev=12000)
+                #eopt, ecov = scp.curve_fit(lambda x,D,tau,t: D*np.exp(-(x-t)/tau), 
+                #        exp_bins, exp_evts, p0=exp_init_params, maxfev=12000)
             except RuntimeError:
                 print("NO SUCCESSFUL FIT TO PEDESTAL AFTER ITERATIONS...")
                 popt = None
@@ -132,7 +139,7 @@ class GainFinder(object):
         if subtract_ped:
             fit_evts = evts - self.ped_fit_y
         if exclude_ped:
-            fit_bin_inds = np.where(bin_centers>=(self.ped_mean + 4*self.ped_sigma))
+            fit_bin_inds = np.where(bin_centers>=(self.ped_mean + 3*self.ped_sigma))
             fit_evts = fit_evts[fit_bin_inds]
             fit_bin_centers = fit_bin_centers[fit_bin_inds]
 
@@ -160,7 +167,7 @@ class GainFinder(object):
             evts = evts + (thehist.GetBinContent(i),)
             evts_unc = evts_unc + (thehist.GetBinError(i),)
             if exclude_ped is True and ((float(thehist.GetBinWidth(i))/2.0) + \
-                    float(thehist.GetBinLowEdge(i)) < (self.ped_mean + 10*self.ped_sigma)):
+                    float(thehist.GetBinLowEdge(i)) < (self.ped_mean + 3*self.ped_sigma)):
                 continue
             fit_bin_centers =  fit_bin_centers + ((float(thehist.GetBinWidth(i))/2.0) + float(thehist.GetBinLowEdge(i)),)
             fit_evts = fit_evts + (thehist.GetBinContent(i),)

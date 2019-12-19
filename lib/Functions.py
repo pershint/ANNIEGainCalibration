@@ -12,6 +12,13 @@ import scipy.stats as scs
 #                                    p0[6]*(1./np.sqrt(((p0[7]**2)*2*np.pi)))*np.exp(-(1./2.)*(x-p0[8])**2/p0[7]**2)
 #
 
+#NOTE: Should have a (n/s) for normalization.  Ignored, letting A fit in
+def OrderStat(x,A,n,mu,s):
+    return gauss1(x,A,mu,s)*((1./2)*((1 + sps.erf((x-mu)/s)))**(n-1))
+
+def OrderStatPlusExpo(x,A,n,mu,s,D,tau,t):
+    return gauss1(x,A,mu,s)*((1./2)*((1 + sps.erf((x-mu)/s)))**(n-1)) + D*(np.exp(-(x-t)/tau)) 
+
 def Gamma(x,mu,b):
     return (1./(b*mu*sps.gamma(1./b))) * (x/(b*mu))**((1./b)-1) * np.exp(-(x/(b*mu)))
 

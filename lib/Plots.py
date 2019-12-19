@@ -35,6 +35,12 @@ def PlotHistAndFit(xdata,ydata,function,xfit,params,fittype):
 def PlotPedestal(xdata,ydata,function,xfit,params,fittype):
     plt.plot(xdata,ydata,linestyle='None',marker='o',markersize=6)
     print("POPT GOING INTO FUNC: " + str(params))
+    if fittype=="OrderStatPlusExpo" and params is not None:
+        yfit = fu.OrderStat(xfit,params[0],params[1],params[2],
+                params[3])
+        plt.plot(xfit,yfit,marker='None')
+        yfit2 = fu.expo(xfit,params[4],params[5],params[6])
+        plt.plot(xfit,yfit2,marker='None')
     if fittype=="Gauss1" and params is not None:
         yfit = function(xfit,params[0],params[1],params[2])
         plt.plot(xfit,yfit,marker='None')

@@ -77,9 +77,9 @@ if __name__=='__main__':
             #Fit pedestal and exponential tail from failed dynode hits
             print("PEDESTAL PARAMS: " + str(init_params["PedParams"]))
             pedopt,pedcov,pedxdata,pedydata,pedyunc = GainFinder.FitPedestal(
-                    thehist,init_params["PedParams"],init_params["PedFitRange"],
+                    thehist, init_params["PedParams"],init_params["PedFitRange"],
                     fit_tail = True)
-            pl.PlotPedestal(pedxdata,pedydata,fu.gaussPlusExpo,pedxdata,pedopt,"GaussPlusExpo")
+            pl.PlotPedestal(pedxdata,pedydata,fu.gauss1,pedxdata,pedopt,"GaussPlusExpo")
             past_ped = np.where(pedxdata > (pedopt[1] + 4*pedopt[2]))[0]
             print("4SIGMA PAST PED: " + str(past_ped))
             PE_counts = np.sum(pedydata[past_ped])

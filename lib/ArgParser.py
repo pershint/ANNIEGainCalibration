@@ -8,6 +8,10 @@ import sys
 parser = argparse.ArgumentParser(description='Python-based software for determining and '+\
         ' logging the charge gains of PMTs')
 parser.add_argument("--debug",action="store_true")
+parser.add_argument("-F", "--fitalgorithm",action="store",dest="FIT",
+                  type=str,
+                  help='Specify whether to use simple Gauss fits, or the' + \
+                  'DEAP fitter algorithm (either "Simple" or "DEAP"')
 parser.add_argument("-D", "--database",action="store",dest="DB",
                   type=str,
                   help="Specify the JSON file to either analyze or append fits to")
@@ -29,7 +33,7 @@ parser.add_argument("-p", "--PIN",action="store",dest="PIN",
 
 
 parser.set_defaults(DB="./DB/TransparencyGains.json",APPEND=None,debug="False",
-        RUNNUM=None,DATE=None,LED=None,PIN=None)
+        RUNNUM=None,DATE=None,LED=None,PIN=None,FIT="Simple")
 args = parser.parse_args()
 DB = args.DB
 APPEND = args.APPEND
@@ -38,6 +42,7 @@ RUNNUM = args.RUNNUM
 DATE = args.DATE
 LED = args.LED
 PIN = args.LED
+FIT = args.FIT
 
 if RUNNUM is None:
     RUNNUM = str(raw_input("Input run number: "))

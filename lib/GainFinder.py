@@ -87,7 +87,7 @@ class GainFinder(object):
         self.ped_mean = popt[1]
         self.ped_sigma = popt[2]
         if fit_tail is True:
-            exp_ind = np.where((bin_centers > self.ped_mean + 3*self.ped_sigma) & (bin_centers < fit_range[1]))[0]
+            exp_ind = np.where((bin_centers > self.ped_mean + 4*self.ped_sigma) & (bin_centers < fit_range[1]))[0]
             exp_bins = bin_centers[exp_ind]
             exp_evts = evts[exp_ind]
             exp_init_params = [popt[0]/popt[2],popt[2],10*popt[1]]
@@ -132,7 +132,7 @@ class GainFinder(object):
         if subtract_ped:
             fit_evts = evts - self.ped_fit_y
         if exclude_ped:
-            fit_bin_inds = np.where(bin_centers>=(self.ped_mean + 3*self.ped_sigma))
+            fit_bin_inds = np.where(bin_centers>=(self.ped_mean + 4*self.ped_sigma))
             fit_evts = fit_evts[fit_bin_inds]
             fit_bin_centers = fit_bin_centers[fit_bin_inds]
 

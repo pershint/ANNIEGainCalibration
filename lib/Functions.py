@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.special import erf
+import scipy.special as sps
 import scipy.stats as scs
 #def gauss2(x,p0):
 #    return p0[0]*(1./(p0[1]*np.sqrt(2*np.pi)))*np.exp(-(1./2.)*(x-p0[2])**2/p0[1]**2) + \
@@ -11,6 +11,9 @@ import scipy.stats as scs
 #                                    p0[3]*(1./np.sqrt(((p0[4]**2)*2*np.pi)))*np.exp(-(1./2.)*(x-p0[5])**2/p0[4]**2) + \
 #                                    p0[6]*(1./np.sqrt(((p0[7]**2)*2*np.pi)))*np.exp(-(1./2.)*(x-p0[8])**2/p0[7]**2)
 #
+
+def Gamma(x,mu,b):
+    return (1./(b*mu*sps.gamma(1./b))) * (x/(b*mu))**((1./b)-1) * np.exp(-(x/(b*mu)))
 
 Beta = lambda x,amp,A,s,y: amp*scs.beta.pdf(x,s,y)/A
 
@@ -24,6 +27,74 @@ gauss2dep= lambda x,C1,m,s,Cf,f1,f2: C1*(1./(s*np.sqrt(2*np.pi)))*np.exp(-(1./2.
 gauss3dep= lambda x,C1,m,s,Cf,f1,f2: C1*(1./(s*np.sqrt(2*np.pi)))*np.exp(-(1./2.)*((x-m)**2)/s**2) + \
                                     C1*Cf*(1./(f2*s*np.sqrt(2*np.pi)))*np.exp(-(1./2.)*((x-(f1*m))**2)/(f2*s)**2) + \
                                     C1*(Cf**2)*(1./((f2**2)*s*np.sqrt(2*np.pi)))*np.exp(-(1./2.)*((x-(2*f1*m))**2)/((f2**2)*s)**2)
+
+
+
+def SPEGaussians(x,C1,mu,s,f_C,f_mu,f_s,C3,l):
+   '''
+   Returns the distribution related from single PE response of a PMT.  
+   One gamma models the completely amplified PEs, while another is related
+   to incomplete amplification ( 0 < f_mu < 1 and f_b free).
+   C1: magnitude of primary gamma
+   C2: magnitude of secondary gamma
+
+   '''
+   base_SPE = gauss1(x,C1,mu,s) + gauss1(x,f_C*C1,f_mu*mu,f_s*s)
+   #Add exponential correction for even more incomplete amplification
+   exponential_range = np.where(x<mu)[0]
+   exp_x = x[exponential_range]
+   exp_SPE = C3*l*np.exp(-x[exponential_range]*l)
+   base_SPE[exponential_range] = base_SPE[exponential_range] + exp_SPE
+   return base_SPE
+
+def SPEGaussians_NoExp(x,C1,mu,s,f_C,f_mu,f_s):
+   '''
+   Returns the distribution related from single PE response of a PMT.  
+   One gamma models the completely amplified PEs, while another is related
+   to incomplete amplification ( 0 < f_mu < 1 and f_b free).
+   C1: magnitude of primary gamma
+   C2: magnitude of secondary gamma
+
+   '''
+   return gauss1(x,C1,mu,s) + gauss1(x,f_C*C1,f_mu*mu,f_s*s)
+
+def SPE2Peaks(x,C1,mu,s,f_C,f_mu,f_s,S_C,S_mu,S_s):
+    single_SPE = SPEGaussians_NoExp(x,C1,mu,s,f_C,f_mu,f_s)
+    two_SPE = SPEGaussians_NoExp(x,S_C*C1,S_mu*mu,S_s*s,f_C,f_mu,f_s)
+    return single_SPE + two_SPE
+
+#def SPE(x,C1,mu,b,f_C,f_mu,f_b,C3,l):
+#   '''
+#   Returns the distribution related from single PE response of a PMT.  
+#   One gamma models the completely amplified PEs, while another is related
+#   to incomplete amplification ( 0 < f_mu < 1 and f_b free).
+#   C1: magnitude of primary gamma
+#   C2: magnitude of secondary gamma
+#
+#   '''
+#   base_SPE = SPE_NoExp(x,C1,mu,b,f_C,f_mu,f_b)
+#   #Add exponential correction for even more incomplete amplification
+#   exponential_range = np.where(x<mu )[0]
+#   exp_x = x[exponential_range]
+#   exp_SPE = C3*l*np.exp(-x[exponential_range]*l)
+#   base_SPE[exponential_range] = base_SPE[exponential_range] + exp_SPE
+#   return base_SPE
+#
+#def SPE_NoExp(x,C1,mu,b,f_C,f_mu,f_b):
+#   '''
+#   Returns the distribution related from single PE response of a PMT.  
+#   One gamma models the completely amplified PEs, while another is related
+#   to incomplete amplification ( 0 < f_mu < 1 and f_b free).
+#   C1: magnitude of primary gamma
+#   C2: magnitude of secondary gamma
+#
+#   '''
+#   return C1*(Gamma(x,mu,b) + f_C*Gamma(x,f_mu*mu,f_b*b))
+#
+#def SPE2Peaks(x,C1,mu,b,f_C,f_mu,f_b,C3,l,S_C,S_mu,S_b):
+#    single_SPE = SPE(x,C1,mu,b,f_C,f_mu,f_b,C3,l)
+#    two_SPE = SPE_NoExp(x,S_C*C1,S_mu*mu,S_b*b,S_C*f_C,f_mu,f_b)
+#    return single_SPE + two_SPE
 
 
 #gauss1skew= lambda x,C1,m1,s1,a: C1*(1./(s1*np.sqrt(2*np.pi)))*np.exp(-(1./2.)*((x-m1)**2)/s1**2)*(1 + (erf(a*(x-m1))/np.sqrt(2)))

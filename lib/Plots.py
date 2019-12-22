@@ -3,8 +3,10 @@ import seaborn as sns
 import pandas as pd
 import Functions as fu
 import numpy as np
+import copy
 
 sns.set(font_scale=1.4)
+
 
 def PlotHistAndFit(xdata,ydata,function,xfit,params,fittype):
     plt.plot(xdata,ydata,linestyle='None',marker='o',markersize=6)
@@ -12,11 +14,14 @@ def PlotHistAndFit(xdata,ydata,function,xfit,params,fittype):
     if fittype=="Gauss1" and params is not None:
         yfit = function(xfit,params[0],params[1],params[2])
         plt.plot(xfit,yfit,marker='None')
+    if fittype=="Landau" and params is not None:
+        yfit = function(xfit,params[0],params[1],params[2],params[3])
+        plt.plot(xfit,yfit,marker='None')
     if fittype=="GaussPlusExpo" and params is not None:
         yfit = fu.gauss1(xfit,params[0],params[1],params[2])
         plt.plot(xfit,yfit,marker='None')
         yfit2 = fu.expo(xfit,params[3],params[4],params[5])
-        plt.plot(xfit,yfit2,marker='None')
+        plt.plot(xfit,yfit2,marker='None') 
     if fittype=="Gauss3" and params is not None:
         yfit = function(xfit,params[0],params[1],params[2],params[3],
                 params[4],params[5])
@@ -39,16 +44,18 @@ def PlotPedestal(xdata,ydata,function,xfit,params,fittype):
         yfit = fu.OrderStat(xfit,params[0],params[1],params[2],
                 params[3])
         plt.plot(xfit,yfit,marker='None')
-        yfit2 = fu.expo(xfit,params[4],params[5],params[6])
-        plt.plot(xfit,yfit2,marker='None')
+        if(len(params)>3):
+            yfit2 = fu.expo(xfit,params[4],params[5],params[6])
+            plt.plot(xfit,yfit2,marker='None')
     if fittype=="Gauss1" and params is not None:
         yfit = function(xfit,params[0],params[1],params[2])
         plt.plot(xfit,yfit,marker='None')
     if fittype=="GaussPlusExpo" and params is not None:
         yfit = fu.gauss1(xfit,params[0],params[1],params[2])
         plt.plot(xfit,yfit,marker='None')
-        yfit2 = fu.expo(xfit,params[3],params[4],params[5])
-        plt.plot(xfit,yfit2,marker='None')
+        if(len(params)>3):
+            yfit2 = fu.expo(xfit,params[3],params[4],params[5])
+            plt.plot(xfit,yfit2,marker='None')
     if fittype=="Gauss3" and params is not None:
         yfit = function(xfit,params[0],params[1],params[2],params[3],
                 params[4],params[5])
@@ -57,9 +64,12 @@ def PlotPedestal(xdata,ydata,function,xfit,params,fittype):
         yfit = function(xfit,params[0],params[1],params[2],params[3],
                 params[4],params[5])
     if (fittype=="SPE2Peaks") and params is not None:
+        #yfit = function(xfit,params[0],params[1],params[2],params[3],
+        #        params[4],params[5],params[6],params[7],params[8],
+        #        params[9],params[10])
         yfit = function(xfit,params[0],params[1],params[2],params[3],
-                params[4],params[5],params[6],params[7],params[8],
-                params[9],params[10])
+                params[4],params[5],params[6],params[7],params[8])
+
         plt.plot(xfit,yfit,marker='None')
     plt.xlabel("Charge (nC)")
     plt.ylabel("Entries")
@@ -96,19 +106,36 @@ def PlotHistPEDAndPEs(xdata,ydata,pedparams,peparams,fittype):
 def PlotHistPEDAndPEs_V2(xdata,ydata,pedparams,peparams,fittype):
     plt.plot(xdata,ydata,linestyle='None',marker='o',markersize=6)
     yped = fu.gauss1(xdata,pedparams[0],pedparams[1],pedparams[2])
-    if len(pedparams>3):
-        exp_range = np.where(xdata>pedparams[1])[0]
-        yexp = fu.expo(xdata[exp_range],pedparams[3],pedparams[4],pedparams[5])
-        plt.plot(xdata[exp_range],yexp,marker='None',label='Partial amp. hits')
     plt.plot(xdata,yped,marker='None',label='Pedestal')
-    if fittype=="SPE" or fittype=="SPE2Peaks":
+    ytot = copy.deepcopy(yped)
+    #if len(pedparams>3):
+    #    exp_range = np.where(xdata>pedparams[1])[0]
+    #    yexp = fu.expo(xdata[exp_range],pedparams[3],pedparams[4],pedparams[5])
+    #    ytot[exp_range] = ytot[exp_range]+yexp
+    #    plt.plot(xdata[exp_range],yexp,marker='None',label='Partial amp. hits')
+    if fittype=="SPE" or fittype=="SPE2Peaks" or fittype=="SPE3Peaks":
         y1spe = fu.SPEGaussians_NoExp(xdata,peparams[0],peparams[1],peparams[2],peparams[3],peparams[4],
                 peparams[5])
+        ytot = ytot+y1spe
         plt.plot(xdata,y1spe,marker='None',label='1PE')
     if fittype=="SPE2Peaks":
-        y2spe = fu.SPEGaussians_NoExp(xdata,peparams[6]*peparams[0],peparams[7]*peparams[1],
-                peparams[8]*peparams[2],peparams[3],peparams[4],peparams[5])
+        y2spe = fu.gauss1(xdata, peparams[6]*peparams[0]*(1+peparams[3]), 
+                                 peparams[1]*(1+peparams[4]),peparams[2]*np.sqrt(1+(peparams[5]**2))) + \
+                fu.gauss1(xdata, peparams[6]*2*peparams[0],peparams[1]*2*peparams[1],peparams[2]*np.sqrt(2))
+        ytot = ytot+y2spe
         plt.plot(xdata,y2spe,marker='None',label='2PE')
+    if fittype=="SPE3Peaks":
+        y2spe = fu.gauss1(xdata, peparams[6]*peparams[0]*(1+peparams[3]), 
+                                 peparams[1]*(1+peparams[4]),peparams[2]*np.sqrt(1+(peparams[5]**2))) + \
+                fu.gauss1(xdata, peparams[6]*2*peparams[0],peparams[1]*2*peparams[1],peparams[2]*np.sqrt(2))
+        ytot = ytot+y2spe
+        plt.plot(xdata,y2spe,marker='None',label='2PE')
+        y3spe = fu.gauss1(xdata, peparams[7]*peparams[0]*(2+peparams[3]), 
+                                 peparams[1]*(2+peparams[4]),peparams[2]*np.sqrt(2+(peparams[5]**2))) + \
+                fu.gauss1(xdata, peparams[7]*3*peparams[0],peparams[1]*3*peparams[1],peparams[2]*np.sqrt(3))
+        ytot = ytot+y3spe
+        plt.plot(xdata,y3spe,marker='None',label='3PE')
+    plt.plot(xdata,ytot,marker='None',label='Total Fit')
     plt.xlabel("Charge (nC)")
     plt.ylabel("Entries")
     plt.ylim(ymin=0.9)

@@ -27,6 +27,9 @@ parser.add_argument("-d", "--date",action="store",dest="DATE",
 parser.add_argument("-l", "--LEDs",action="store",dest="LED",
                   type=str,
                   help="Specify which LEDs were on (Input is CSV, least to greatest)")
+parser.add_argument("-v", "--Voltage",action="store",dest="VOLTS",
+                  type=str,
+                  help="Specify the voltage setpoint)")
 parser.add_argument("-p", "--PIN",action="store",dest="PIN",
                   type=str,
                   help="Specify the PIN setpoint for all LEDs")
@@ -41,7 +44,8 @@ DEBUG = args.debug
 RUNNUM = args.RUNNUM
 DATE = args.DATE
 LED = args.LED
-PIN = args.LED
+PIN = args.PIN
+VOLTS = args.VOLTS
 FIT = args.FIT
 
 if RUNNUM is None:
@@ -52,4 +56,6 @@ if LED is None:
     LED = str(raw_input("Which LEDs are on (Input is CSV, least to greatest): "))
 if PIN is None:
     PIN = str(raw_input("PIN setpoint for LEDs: "))
+if VOLTS is None:
+    VOLTS = str(raw_input("Voltage setpoint for PMTs: "))
 

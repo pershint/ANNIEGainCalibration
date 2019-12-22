@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.special as sps
 import scipy.stats as scs
+import matplotlib.pyplot as plt
 #def gauss2(x,p0):
 #    return p0[0]*(1./(p0[1]*np.sqrt(2*np.pi)))*np.exp(-(1./2.)*(x-p0[2])**2/p0[1]**2) + \
 #                                    p0[3]*(1./(p0[4]*np.sqrt(2*np.pi)))*np.exp(-(1./2.)*(x-p0[5])**2/p0[4]**2) 
@@ -25,8 +26,10 @@ def Gamma(x,mu,b):
 Beta = lambda x,amp,A,s,y: amp*scs.beta.pdf(x,s,y)/A
 
 
-gauss1= lambda x,C1,m1,s1: C1*(1./(s1*np.sqrt(2*np.pi)))*np.exp(-(1./2.)*((x-m1)**2)/s1**2)
- 
+#gauss1= lambda x,C1,m1,s1: C1*(1./(s1*np.sqrt(2*np.pi)))*np.exp(-(1./2.)*((x-m1)**2)/s1**2)
+gauss1= lambda x,C1,m1,s1: C1*np.exp(-(1./2.)*((x-m1)**2)/s1**2)
+
+landau = lambda x,C,m,l1,l2: C*((1./np.sqrt(2*np.pi))*np.exp(-(1./2)*(((x-m)/l1) + np.exp(-(x-m)/l2))))
 
 gauss2dep= lambda x,C1,m,s,Cf,f1,f2: C1*(1./(s*np.sqrt(2*np.pi)))*np.exp(-(1./2.)*((x-m)**2)/s**2) + \
                                     C1*Cf*(1./(f2*s*np.sqrt(2*np.pi)))*np.exp(-(1./2.)*((x-(f1*m))**2)/(f2*s)**2)
@@ -65,10 +68,30 @@ def SPEGaussians_NoExp(x,C1,mu,s,f_C,f_mu,f_s):
    '''
    return gauss1(x,C1,mu,s) + gauss1(x,f_C*C1,f_mu*mu,f_s*s)
 
-def SPE2Peaks(x,C1,mu,s,f_C,f_mu,f_s,S_C,S_mu,S_s):
+def PE2Convolve(x,C1,mu,s,f_C,f_mu,f_s,S_C):
+    return (S_C)*np.convolve(SPEGaussians_NoExp(x,C1,mu,s,f_C,f_mu,f_s),
+                                             SPEGaussians_NoExp(x,C1,mu,s,f_C,f_mu,f_s),
+                                             "same")
+
+def SPE2Peaks(x,C1,mu,s,f_C,f_mu,f_s,S_C):#,S_mu,S_s):
     single_SPE = SPEGaussians_NoExp(x,C1,mu,s,f_C,f_mu,f_s)
-    two_SPE = SPEGaussians_NoExp(x,S_C*C1,S_mu*mu,S_s*s,f_C,f_mu,f_s)
-    return single_SPE + two_SPE
+    two_PE = gauss1(x,S_C*C1*(1+f_C),mu*(1+f_mu),s*np.sqrt(1+(f_s)**2)) +  \
+            gauss1(x,S_C*2*C1,2*mu,s*np.sqrt(2)) # + \
+            #gauss1(x,S_C*C1*2*f_C, 2*mu*f_mu,s*f_s*np.sqrt(2))
+    return single_SPE + two_PE
+
+def SPE3Peaks(x,C1,mu,s,f_C,f_mu,f_s,S_C1,S_C2):#,S_mu,S_s):
+    single_SPE = SPEGaussians_NoExp(x,C1,mu,s,f_C,f_mu,f_s)
+    two_PE = gauss1(x,S_C1*C1*(1+f_C),mu*(1+f_mu),s*np.sqrt(1+(f_s)**2)) +  \
+            gauss1(x,S_C1*2*C1,2*mu,s*np.sqrt(2)) # + \
+            #gauss1(x,S_C*C1*2*f_C, 2*mu*f_mu,s*f_s*np.sqrt(2))
+    three_PE = gauss1(x,S_C2*3*C1,3*mu,s*np.sqrt(3)) + \
+               gauss1(x,S_C2*C1*(2+f_C),mu*(2+f_mu),s*np.sqrt(2+(f_s)**2))
+    return single_SPE + two_PE + three_PE
+
+#def SPE2Peaks(x,C1,mu,s,f_C,f_mu,f_s,S_C):#,S_mu,S_s):
+#    single_SPE = SPEGaussians_NoExp(x,C1,mu,s,f_C,f_mu,f_s)
+#    return single_SPE + PE2Convolve(x,C1,mu,s,f_C,f_mu,f_s,S_C)
 
 #def SPE(x,C1,mu,b,f_C,f_mu,f_b,C3,l):
 #   '''
@@ -108,7 +131,7 @@ def SPE2Peaks(x,C1,mu,s,f_C,f_mu,f_s,S_C,S_mu,S_s):
 #
 #
 def gaussPlusExpo(x,C1,m1,s1,D,tau,t):
-    return D*(np.exp(-(x-t)/tau)) + C1*(1./(s1*np.sqrt(2*np.pi)))*np.exp(-(1./2.)*((x-m1)**2)/s1**2)
+    return D*(np.exp(-(x-t)/tau)) + C1*np.exp(-(1./2.)*((x-m1)**2)/s1**2)
 
 expo = lambda x,D,tau,t: D*(np.exp(-(x-t)/tau))
 
@@ -127,10 +150,10 @@ expo = lambda x,D,tau,t: D*(np.exp(-(x-t)/tau))
 #
 #
 #
-#gauss4= lambda x,C1,m1,s1,C2,m2,s2,C3,m3,s3,C4,m4,s4: C1*(1./(s1*np.sqrt((2*np.pi))))*np.exp(-(1./2.)*(x-m1)**2/s1**2) + \
-#                                    C2*(1./(s2*np.sqrt((2*np.pi))))*np.exp(-(1./2.)*(x-m2)**2/s2**2) + \
-#                                    C3*(1./(s3*np.sqrt((2*np.pi))))*np.exp(-(1./2.)*(x-m3)**2/s3**2) + \
-#                                    C4*(1./(s4*np.sqrt((2*np.pi))))*np.exp(-(1./2.)*(x-m4)**2/s4**2)
-#
-#gauss4InitialParams = np.array([1000,450,6,1000,578,6,1000,750,6,1000,867,5])
-#
+gauss4= lambda x,C1,m1,s1,C2,m2,s2,C3,m3,s3,C4,m4,s4: C1*(1./(s1*np.sqrt((2*np.pi))))*np.exp(-(1./2.)*(x-m1)**2/s1**2) + \
+                                    C2*(1./(s2*np.sqrt((2*np.pi))))*np.exp(-(1./2.)*(x-m2)**2/s2**2) + \
+                                    C3*(1./(s3*np.sqrt((2*np.pi))))*np.exp(-(1./2.)*(x-m3)**2/s3**2) + \
+                                    C4*(1./(s4*np.sqrt((2*np.pi))))*np.exp(-(1./2.)*(x-m4)**2/s4**2)
+
+gauss4InitialParams = np.array([1000,450,6,1000,578,6,1000,750,6,1000,867,5])
+

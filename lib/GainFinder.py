@@ -13,6 +13,7 @@ class GainFinder(object):
         self.ped_mean = None
         self.ped_sigma = None
         self.ped_fit_y = None
+        self.ped_fit_y_un = None
         self.ped_fit_x = None
 
         self.fitfunc = None
@@ -26,11 +27,14 @@ class GainFinder(object):
     def setInitialFitParams(self,initial_params):
         self.initial_params =  initial_params
 
+    def setInitMean(self,mean):
+        self.initial_params[1] = mean #FIXME: This is specific to how gauss1 is defined. generalize
+
     def setBounds(self,lower_bounds,upper_bounds):
         self.lower_bounds =  lower_bounds
         self.upper_bounds =  upper_bounds
 
-    def FitPedestal(self,HistName,init_params,fit_range,fit_tail=False):
+    def FitPedestal(self,HistName,init_params,fit_range,fit_tail=False,exp_fit_range=[]):
         '''
         Uses a Gaussian from the Functions library to attempt to fit
         the pedestal peak of the distribution.  A fit range can be
@@ -84,22 +88,30 @@ class GainFinder(object):
             pcov = None
             return popt, pcov, bin_centers, evts, evts_unc
         self.ped_fit_x = bin_centers
-        self.ped_fit_y =fu.gauss1(self.ped_fit_x,popt[0],popt[1],popt[2]) 
+        self.ped_fit_y =fu.gauss1(self.ped_fit_x,popt[0],popt[1],popt[2])
+        perr = np.diag(pcov)
+        self.ped_fit_y_unc =abs(fu.gauss1(self.ped_fit_x,popt[0]+perr[0],popt[1],popt[2]+perr[2]) - 
+                               fu.gauss1(self.ped_fit_x,popt[0]-perr[0],popt[1],popt[2]-perr[2]))
         self.ped_mean = popt[1]
         self.ped_sigma = popt[2]
         #self.ped_fit_y =fu.OrderStat(self.ped_fit_x,popt[0],popt[1],popt[2],popt[3]) 
         #self.ped_mean = popt[2]
         #self.ped_sigma = popt[3]
         if fit_tail is True:
-            exp_ind = np.where((bin_centers > self.ped_mean + 3*self.ped_sigma) & (bin_centers < fit_range[1]))[0]
+            exp_ind = []
+            if len(exp_fit_range) > 0:
+                exp_ind = np.where((bin_centers > exp_fit_range[0]) & (bin_centers < exp_fit_range[1]))[0]
+            else:
+                exp_ind = np.where((bin_centers > self.ped_mean+self.ped_sigma) & (bin_centers < self.ped_mean + 3*self.ped_sigma))[0]
             exp_bins = bin_centers[exp_ind]
             exp_evts = evts[exp_ind]
-            exp_init_params = [popt[0]/popt[2],popt[2],10*popt[1]]
-            #exp_init_params = [popt[0]/popt[3],popt[3],10*popt[2]]
+            exp_evts_unc = evts_unc[exp_ind]
+            #exp_init_params = [popt[0]/popt[2],popt[2],10*popt[1]]
+            exp_init_params = [exp_evts[0],popt[2],10*popt[1]]
             print("EXPONENTIAL FIT: INIT PARAMS: " + str(exp_init_params))
             try:
                 eopt, ecov = scp.curve_fit(lambda x,D,tau,t: fu.gaussPlusExpo(x,popt[0],popt[1],popt[2],D,tau,t), 
-                        exp_bins, exp_evts, p0=exp_init_params, maxfev=12000)
+                        exp_bins, exp_evts, p0=exp_init_params, sigma=exp_evts_unc, maxfev=12000)
                 #eopt, ecov = scp.curve_fit(lambda x,D,tau,t: D*np.exp(-(x-t)/tau), 
                 #        exp_bins, exp_evts, p0=exp_init_params, maxfev=12000)
             except RuntimeError:
@@ -111,9 +123,10 @@ class GainFinder(object):
             #
             self.ped_fit_y =fu.gaussPlusExpo(self.ped_fit_x,popt[0],popt[1],
                     popt[2],eopt[0],eopt[1],eopt[2]) 
-        return popt, pcov, fit_bin_centers,fit_evts,fit_evts_unc
+        return popt, pcov, bin_centers,evts,evts_unc
 
-    def FitPEPeaks(self,HistName,exclude_ped = True, subtract_ped = False):
+    def FitPEPeaks(self,HistName,exclude_ped = True, subtract_ped = False,
+            fit_range = []):
         thehist =  self.ROOTFile.Get(HistName)
         #Get histogram information into ntuples
         bin_centers, evts,evts_unc =(), (), () #pandas wants ntuples
@@ -136,19 +149,29 @@ class GainFinder(object):
         fit_bin_centers = np.array(fit_bin_centers)
         fit_evts = np.array(fit_evts)
         fit_evts_unc = np.array(fit_evts_unc)
+        if len(fit_range)>0:
+            fit_bin_inds = np.where((fit_bin_centers > fit_range[0]) & (fit_bin_centers < fit_range[1]))[0]
+            fit_bin_centers = fit_bin_centers[fit_bin_inds]
+            fit_evts = fit_evts[fit_bin_inds]
+            fit_evts_unc = fit_evts_unc[fit_bin_inds]
         if subtract_ped:
-            fit_evts = evts - self.ped_fit_y
+            fit_evts = fit_evts - self.ped_fit_y
+            fit_evts_unc = np.sqrt(evts_unc**2 + self.ped_fit_y_unc**2)
         if exclude_ped:
             fit_bin_inds = np.where(bin_centers>=(self.ped_mean + 3*self.ped_sigma))
             fit_evts = fit_evts[fit_bin_inds]
+            fit_evts_unc = fit_evts_unc[fit_bin_inds]
             fit_bin_centers = fit_bin_centers[fit_bin_inds]
-
+        zerobins = np.where(fit_evts_unc<=1)[0]
+        fit_evts_unc[zerobins] = 1.15
+        print(fit_evts_unc)
         try:
             if self.lower_bounds is None or self.upper_bounds is None:
-                popt, pcov = scp.curve_fit(self.fitfunc, fit_bin_centers, fit_evts, p0=self.initial_params, maxfev=6000)
+                popt, pcov = scp.curve_fit(self.fitfunc, fit_bin_centers, fit_evts, p0=self.initial_params, 
+                        sigma = fit_evts_unc, maxfev=6000)
             else:
                 popt, pcov = scp.curve_fit(self.fitfunc, fit_bin_centers, fit_evts, p0=self.initial_params,
-                      bounds=(self.lower_bounds,self.upper_bounds),maxfev=6000)
+                      bounds=(self.lower_bounds,self.upper_bounds),sigma = fit_evts_unc,maxfev=6000)
         except RuntimeError:
             print("NO SUCCESSFUL FIT AFTER ITERATIONS...")
             popt = None

@@ -73,8 +73,8 @@ def PE2Convolve(x,C1,mu,s,f_C,f_mu,f_s,S_C):
                                              SPEGaussians_NoExp(x,C1,mu,s,f_C,f_mu,f_s),
                                              "same")
 
-def EXP2SPE(x,C1,mu,s,f_C,f_mu,f_s,S_C,D,f_tau,l):#,S_mu,S_s):
-    exponen = expo(x,D,f_tau*mu,l)
+def EXP2SPE(x,C1,mu,s,f_C,f_mu,f_s,S_C,D,tau,f_t):#,S_mu,S_s):
+    exponen = expo(x,D,tau,f_t)
     single_SPE = SPEGaussians_NoExp(x,C1,mu,s,f_C,f_mu,f_s)
     two_PE = gauss1(x,S_C*C1*(1+f_C),mu*(1+f_mu),s*np.sqrt(1+(f_s)**2)) +  \
             gauss1(x,S_C*2*C1,2*mu,s*np.sqrt(2)) # + \

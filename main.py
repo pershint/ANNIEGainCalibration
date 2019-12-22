@@ -137,9 +137,16 @@ if __name__=='__main__':
                         exp_fit_range = [float(fit_min),float(fit_max)]
 
             UseDefault = "y"
+
             while not FitComplete:
+                print("SIGMA LIMIT IS: " + str(pedopt[2]))
+                GainFinder.setTauMax(3*pedopt[2])
                 init_mean = str(raw_input("Guess at SPE mean: "))
-                GainFinder.setInitMean(float(init_mean))
+                try:
+                    GainFinder.setInitMean(float(init_mean))
+                except ValueError:
+                    print("Input not recognized.  Trying a save bet of 0.001")
+                    GainFinder.setInitMean(0.001)
                 if UseDefault in ["y","Y","yes","Yes","YES"]:
                     popt,pcov,xdata,ydata,y_unc = GainFinder.FitPEPeaks(thehist,
                             exclude_ped = True,subtract_ped = True)
@@ -195,7 +202,7 @@ if __name__=='__main__':
                     db[fittype]["c2HScale_unc"].append(errs[3])
                     db[fittype]["c2MScale_unc"].append(errs[4])
                     db[fittype]["c2SScale_unc"].append(errs[5])
-                if fittype in ["SPE2Peaks"]:
+                if fittype in ["SPE2Peaks","EXP2SPE"]:
                     db[fittype]["c1Height"].append(popt[0])
                     db[fittype]["c1Mu"].append(popt[1])
                     db[fittype]["c1Sigma"].append(popt[2])

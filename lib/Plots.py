@@ -125,7 +125,7 @@ def PlotHistPEDAndPEs_V2(xdata,ydata,pedparams,peparams,fittype):
         ytot = ytot+y2spe
         plt.plot(xdata,y2spe,marker='None',label='2PE')
     if fittype=="EXP2SPE":
-        yexp = fu.expo(xdata, peparams[7],peparams[8]*peparams[1],peparams[9])
+        yexp = fu.expo(xdata, peparams[7],peparams[8],peparams[9])
         plt.plot(xdata,yexp,marker='None',label='Exponential')
         ytot = ytot + yexp
     if fittype=="SPE3Peaks":

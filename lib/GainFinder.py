@@ -29,6 +29,10 @@ class GainFinder(object):
 
     def setInitMean(self,mean):
         self.initial_params[1] = mean #FIXME: This is specific to how gauss1 is defined. generalize
+    
+    def setTauMax(self,tau):
+        print("TAU MAX WILL BE: " + str(tau))
+        self.upper_bounds[8] = tau #FIXME: This is specific to how gauss1 is defined. generalize
 
     def setBounds(self,lower_bounds,upper_bounds):
         self.lower_bounds =  lower_bounds
@@ -158,7 +162,7 @@ class GainFinder(object):
             fit_evts = fit_evts - self.ped_fit_y
             fit_evts_unc = np.sqrt(evts_unc**2 + self.ped_fit_y_unc**2)
         if exclude_ped:
-            fit_bin_inds = np.where(bin_centers>=(self.ped_mean + 3*self.ped_sigma))
+            fit_bin_inds = np.where(bin_centers>=(self.ped_mean + 1*self.ped_sigma))
             fit_evts = fit_evts[fit_bin_inds]
             fit_evts_unc = fit_evts_unc[fit_bin_inds]
             fit_bin_centers = fit_bin_centers[fit_bin_inds]
@@ -166,7 +170,7 @@ class GainFinder(object):
         fit_evts_unc[zerobins] = 1.15
         plt.errorbar(fit_bin_centers,fit_evts,yerr=fit_evts_unc,marker='o',linestyle="None")
         plt.show()
-        print(fit_evts_unc)
+        print("INITIAL PARAMS FOR FIT: " + str(self.initial_params))
         try:
             if self.lower_bounds is None or self.upper_bounds is None:
                 popt, pcov = scp.curve_fit(self.fitfunc, fit_bin_centers, fit_evts, p0=self.initial_params, 

@@ -164,6 +164,8 @@ class GainFinder(object):
             fit_bin_centers = fit_bin_centers[fit_bin_inds]
         zerobins = np.where(fit_evts_unc<=1)[0]
         fit_evts_unc[zerobins] = 1.15
+        plt.errorbar(fit_bin_centers,fit_evts,yerr=fit_evts_unc,marker='o',linestyle="None")
+        plt.show()
         print(fit_evts_unc)
         try:
             if self.lower_bounds is None or self.upper_bounds is None:

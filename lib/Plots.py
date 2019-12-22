@@ -113,17 +113,21 @@ def PlotHistPEDAndPEs_V2(xdata,ydata,pedparams,peparams,fittype):
     #    yexp = fu.expo(xdata[exp_range],pedparams[3],pedparams[4],pedparams[5])
     #    ytot[exp_range] = ytot[exp_range]+yexp
     #    plt.plot(xdata[exp_range],yexp,marker='None',label='Partial amp. hits')
-    if fittype=="SPE" or fittype=="SPE2Peaks" or fittype=="SPE3Peaks":
+    if fittype=="SPE" or fittype=="SPE2Peaks" or fittype=="SPE3Peaks" or fittype=="EXP2SPE":
         y1spe = fu.SPEGaussians_NoExp(xdata,peparams[0],peparams[1],peparams[2],peparams[3],peparams[4],
                 peparams[5])
         ytot = ytot+y1spe
         plt.plot(xdata,y1spe,marker='None',label='1PE')
-    if fittype=="SPE2Peaks":
+    if fittype=="SPE2Peaks" or fittype=="EXP2SPE":
         y2spe = fu.gauss1(xdata, peparams[6]*peparams[0]*(1+peparams[3]), 
                                  peparams[1]*(1+peparams[4]),peparams[2]*np.sqrt(1+(peparams[5]**2))) + \
                 fu.gauss1(xdata, peparams[6]*2*peparams[0],peparams[1]*2*peparams[1],peparams[2]*np.sqrt(2))
         ytot = ytot+y2spe
         plt.plot(xdata,y2spe,marker='None',label='2PE')
+    if fittype=="EXP2SPE":
+        yexp = fu.expo(xdata, peparams[7],peparams[8]*peparams[1],peparams[9])
+        plt.plot(xdata,yexp,marker='None',label='Exponential')
+        ytot = ytot + yexp
     if fittype=="SPE3Peaks":
         y2spe = fu.gauss1(xdata, peparams[6]*peparams[0]*(1+peparams[3]), 
                                  peparams[1]*(1+peparams[4]),peparams[2]*np.sqrt(1+(peparams[5]**2))) + \

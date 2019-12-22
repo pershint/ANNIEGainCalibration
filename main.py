@@ -21,8 +21,8 @@ if __name__=='__main__':
         print(" ####### APPENDING NEW INFO TO GAIN DATABASE ####### ")
     with open(ap.APPEND,"r") as f:
         myfile = ROOT.TFile.Open(ap.APPEND)
-        fittype = str(raw_input("Fit type to perform to PE peaks (Gauss2, Gauss3,SPE,SPE2Peaks,SPE3Peaks): "))
-        if fittype not in ["Gauss2","Gauss3","SPE","SPE2Peaks","SPE3Peaks"]:
+        fittype = str(raw_input("Fit type to perform to PE peaks (Gauss2, Gauss3,SPE,EXP2SPE,SPE2Peaks,SPE3Peaks): "))
+        if fittype not in ["Gauss2","Gauss3","SPE","SPE2Peaks","SPE3Peaks","EXP2SPE"]:
             print("Please input a valid fitting approach to take.")
             sys.exit(0)
     with open(ap.DB) as dbfile:
@@ -36,7 +36,9 @@ if __name__=='__main__':
         for j,l in enumerate(chans):
             chans[j]=int(chans[j].rstrip("\n"))
     channel_list = np.array(chans)
+    off_list = [333,342,344,345,346,349,352,359,369,431,444,445]
     channel_list = np.arange(331,470)
+    channel_list = np.setdiff1d(channel_list,off_list)
 
     #Load dictionary of initial fit parameters
     with open("./DB/InitialParams.json","r") as f:
@@ -66,6 +68,10 @@ if __name__=='__main__':
             GainFinder.setFitFunction(fu.SPE3Peaks)
             GainFinder.setInitialFitParams(init_params["SPE3PeaksInitParams"])
             GainFinder.setBounds(init_params["SPE3PeaksLB"],init_params["SPE3PeaksUB"])
+        if(fittype == "EXP2SPE"):
+            GainFinder.setFitFunction(fu.EXP2SPE)
+            GainFinder.setInitialFitParams(init_params["EXP2SPEInitParams"])
+            GainFinder.setBounds(init_params["EXP2SPELB"],init_params["EXP2SPEUB"])
 
 
         #Loop through channels in file and fit gains to each
@@ -125,14 +131,15 @@ if __name__=='__main__':
                     PedFitComplete = True
                     GoodPedFit = True
                 else:
-                    fit_min = str(raw_input("Exponential window min: "))
-                    fit_max = str(raw_input("Exponential window max: "))
-                    exp_fit_range = [float(fit_min),float(fit_max)]
+                    if FIT_TAIL:
+                        fit_min = str(raw_input("Exponential window min: "))
+                        fit_max = str(raw_input("Exponential window max: "))
+                        exp_fit_range = [float(fit_min),float(fit_max)]
 
-            init_mean = np.argmax(above_ped)
-            GainFinder.setInitMean(init_mean)
             UseDefault = "y"
             while not FitComplete:
+                init_mean = str(raw_input("Guess at SPE mean: "))
+                GainFinder.setInitMean(float(init_mean))
                 if UseDefault in ["y","Y","yes","Yes","YES"]:
                     popt,pcov,xdata,ydata,y_unc = GainFinder.FitPEPeaks(thehist,
                             exclude_ped = True,subtract_ped = True)
@@ -141,6 +148,8 @@ if __name__=='__main__':
                     popt,pcov,xdata,ydata,y_unc = GainFinder.FitPEPeaks(thehist)
                 if popt is None:
                     print("FIT FAILED.  WE'RE MOVING ON TO THE NEXT CHANNEL")
+                    FitComplete = True
+                    GoodFit = False
                     continue
                 print("BEST FIT PARAMS: " + str(popt))
                 #pl.PlotHistAndFit(xdata,ydata,GainFinder.fitfunc,xdata,popt,fittype)
@@ -162,6 +171,7 @@ if __name__=='__main__':
                     retry = str(raw_input("Try again? [y/N]: "))
                     if retry not in ["y","Y","yes","Yes","YES"]:
                         FitComplete = True
+                        GoodFit = False
 
             #Since we've made it out, save to the DB
             if GoodFit:
@@ -200,6 +210,13 @@ if __name__=='__main__':
                     db[fittype]["c2MScale_unc"].append(errs[4])
                     db[fittype]["c2SScale_unc"].append(errs[5])
                     db[fittype]["SCScale_unc"].append(errs[6])
+                if fittype in ["EXP2SPE"]:
+                    db[fittype]["CExp"].append(popt[7])
+                    db[fittype]["f_mu"].append(popt[8])
+                    db[fittype]["tau"].append(popt[9])
+                    db[fittype]["CExp_unc"].append(errs[7])
+                    db[fittype]["f_mu_unc"].append(errs[8])
+                    db[fittype]["tau_unc"].append(errs[9])
         with open(ap.DB,"w") as dbfile:
             json.dump(db,dbfile,sort_keys=False, indent=4)
 

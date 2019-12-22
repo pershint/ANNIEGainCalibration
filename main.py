@@ -140,7 +140,7 @@ if __name__=='__main__':
 
             while not FitComplete:
                 print("SIGMA LIMIT IS: " + str(pedopt[2]))
-                GainFinder.setTauMax(3*pedopt[2])
+                GainFinder.setTauMax(4*pedopt[2])
                 init_mean = str(raw_input("Guess at SPE mean: "))
                 try:
                     GainFinder.setInitMean(float(init_mean))

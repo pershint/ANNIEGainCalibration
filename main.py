@@ -38,7 +38,12 @@ if __name__=='__main__':
     channel_list = np.array(chans)
     off_list = [333,342,344,345,346,349,352,359,369,431,444,445]
     channel_list = np.arange(331,470)
-    channel_list = np.setdiff1d(channel_list,off_list)
+    #channel_list = np.setdiff1d(channel_list,off_list)
+    #hamamatsus = np.arange(372,416,1)
+    #keep = np.array([353,358,361,362,366,426,455])
+    #alltokeep = np.concatenate((hamamatsus,keep))
+    #dontkeep = np.setdiff1d(channel_list,alltokeep)
+    #channel_list = np.setdiff1d(channel_list,dontkeep)
 
     #Load dictionary of initial fit parameters
     with open("./DB/InitialParams.json","r") as f:

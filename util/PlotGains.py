@@ -28,7 +28,7 @@ if __name__=='__main__':
                 df = pd.concat([df,pd.DataFrame(dat["EXP2SPE"])],axis=0)
     print(df)
     TUBES = np.array(list(set(df["Channel"])))
-    TUBES = np.arange(332,460,1)
+    TUBES = np.arange(458,464,1)
     results = {"Channel":[], "Setpoint":[]}
     failures = {"Channel":[]}
     for cnum in TUBES:
@@ -58,6 +58,7 @@ if __name__=='__main__':
             failures["Channel"].append(cnum)
             continue
         ax.plot(np.sort(myx),expo(np.sort(myx),popt[0],popt[1],popt[2]),label='Exponential Fit')
+        print("CHANNEL: %i"%(cnum))
         print("1E7 GAIN VOLTAGE: %s"%(str(ChargeToV(1E7,popt[0],popt[1],popt[2]))))
         results["Channel"].append(cnum)
         results["Setpoint"].append(ChargeToV(1E7,popt[0],popt[1],popt[2]))
@@ -74,3 +75,8 @@ if __name__=='__main__':
     plt.savefig("GainPlots.pdf")
     print(results)
     print(failures)
+    with open("FitVoltages.json","w") as f:
+        json.dump(results,f,indent=4)
+    with open("FailedFits.json","w") as f:
+        json.dump(failures,f,indent=4)
+        json.dump(results,f,indent=4)

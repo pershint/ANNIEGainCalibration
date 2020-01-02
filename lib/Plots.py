@@ -113,18 +113,23 @@ def PlotHistPEDAndPEs_V2(xdata,ydata,pedparams,peparams,fittype):
     #    yexp = fu.expo(xdata[exp_range],pedparams[3],pedparams[4],pedparams[5])
     #    ytot[exp_range] = ytot[exp_range]+yexp
     #    plt.plot(xdata[exp_range],yexp,marker='None',label='Partial amp. hits')
-    if fittype=="SPE" or fittype=="SPE2Peaks" or fittype=="SPE3Peaks" or fittype=="EXP2SPE":
+    if fittype in ["SPE","SPE2Peaks","SPE3Peaks","EXP2SPE","EXP3SPE"]:
         y1spe = fu.SPEGaussians_NoExp(xdata,peparams[0],peparams[1],peparams[2],peparams[3],peparams[4],
                 peparams[5])
         ytot = ytot+y1spe
         plt.plot(xdata,y1spe,marker='None',label='1PE')
-    if fittype=="SPE2Peaks" or fittype=="EXP2SPE":
+    if fittype in ["SPE2Peaks","EXP2SPE","EXP3SPE"]:
         y2spe = fu.gauss1(xdata, peparams[6]*peparams[0]*(1+peparams[3]), 
                                  peparams[1]*(1+peparams[4]),peparams[2]*np.sqrt(1+(peparams[5]**2))) + \
                 fu.gauss1(xdata, peparams[6]*2*peparams[0],peparams[1]*2*peparams[1],peparams[2]*np.sqrt(2))
         ytot = ytot+y2spe
         plt.plot(xdata,y2spe,marker='None',label='2PE')
-    if fittype=="EXP2SPE":
+    if fittype in ["EXP3SPE"]:
+        y3spe = fu.gauss1(xdata, peparams[10]*3*peparams[6]*peparams[0], 
+                                 3*peparams[1],np.sqrt(3)*peparams[2])
+        ytot = ytot+y3spe
+        plt.plot(xdata,y3spe,marker='None',label='3PE')
+    if fittype in ["EXP2SPE","EXP3SPE"]:
         yexp = fu.expo(xdata, peparams[7],peparams[8],peparams[9])
         plt.plot(xdata,yexp,marker='None',label='Exponential')
         ytot = ytot + yexp
@@ -145,6 +150,19 @@ def PlotHistPEDAndPEs_V2(xdata,ydata,pedparams,peparams,fittype):
     plt.ylim(ymin=0.9)
     plt.yscale("log")
     plt.title("Comparison of ped, PE distribution fits to data")
+    leg = plt.legend(loc=1,fontsize=24)
+    leg.set_frame_on(True)
+    leg.draw_frame(True)
+    plt.show()
+
+def PlotDataAndSPEMean(hist_data,SPEMean):
+    plt.plot(hist_data["bins"],hist_data["bin_heights"],linestyle='None',marker='o',markersize=7,label='data')
+    plt.axvline(x=SPEMean,linewidth=4,label='SPE Estimate')
+    plt.xlabel("Charge (pC)")
+    plt.ylabel("Entries")
+    plt.ylim(ymin=0.9)
+    plt.yscale("log")
+    plt.title("Fermi method SPE estimation compared with data")
     leg = plt.legend(loc=1,fontsize=24)
     leg.set_frame_on(True)
     leg.draw_frame(True)

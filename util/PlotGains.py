@@ -7,7 +7,9 @@ import pandas as pd
 import glob
 import json
 
-DATADIR = "./DB/Final/"
+sns.set_context("poster")
+
+DATADIR = "./DB/GainFits/Final/"
 
 def expo(x,A,l,C):
     return A*np.exp(x/l) + C
@@ -23,12 +25,13 @@ if __name__=='__main__':
         with open(f,"r") as f:
             dat = json.load(f)
             if df is None:
-                df = pd.DataFrame(dat["EXP2SPE"])
+                df = pd.DataFrame(dat)#["EXP2SPE"])
             else:
-                df = pd.concat([df,pd.DataFrame(dat["EXP2SPE"])],axis=0)
+                df = pd.concat([df,pd.DataFrame(dat)],axis=0) #["EXP2SPE"])],axis=0)
     print(df)
     TUBES = np.array(list(set(df["Channel"])))
-    TUBES = np.arange(458,464,1)
+    TUBES = np.arange(332,464,1)
+    TUBES = np.array([390])
     results = {"Channel":[], "Setpoint":[]}
     failures = {"Channel":[]}
     for cnum in TUBES:
@@ -37,9 +40,15 @@ if __name__=='__main__':
             failures["Channel"].append(cnum)
             continue
         fig,ax = plt.subplots()
-        myx = df.loc[((df["Channel"] == cnum) & ((df["c1Mu"]>0.0006) | (df["c1Height"]>100))), "V"]
-        myy = df.loc[((df["Channel"] == cnum) & ((df["c1Mu"]>0.0006) | (df["c1Height"]>100))), "c1Mu"]*(6.2415E9)
-        myyerr = df.loc[((df["Channel"] == cnum) & ((df["c1Mu"]>0.0006) | (df["c1Height"]>100))), "c1Mu_unc"]*(6.2415E9)
+        print(cnum)
+        myx = df.loc[((df["Channel"] == cnum)), "V"].values
+        myy = df.loc[(df["Channel"] == cnum), "c1Mu"].values*(6.2415E9)
+        myyerr = df.loc[(df["Channel"] == cnum), "c1Mu_unc"].values*(6.2415E9)
+        #myx = df.loc[((df["Channel"] == cnum) & ((df["c1Mu"]>0.0006) | (df["c1Height"]>100))), "V"]
+        #myy = df.loc[((df["Channel"] == cnum) & ((df["c1Mu"]>0.0006) | (df["c1Height"]>100))), "c1Mu"]*(6.2415E9)
+        #myyerr = df.loc[((df["Channel"] == cnum) & ((df["c1Mu"]>0.0006) | (df["c1Height"]>100))), "c1Mu_unc"]*(6.2415E9)
+        print(myx)
+        print(myy)
         if (len(myx)<3):
             print("Not enough data to fit an exponential.")
             print("SKIPPING CHANNEL %i"%(cnum))
@@ -49,8 +58,6 @@ if __name__=='__main__':
         #ax.bar(y = myy,x = range(len(myx)), yerr = myyerr,label = cnum)
         #ax.xticks(range(len(myx)),myx)
         init_params = [5E5,100,1000]
-        print(myx)
-        print(myy)
         try:
             popt, pcov = scp.curve_fit(expo, myx, myy,p0=init_params, sigma=myyerr, maxfev=12000)
         except RuntimeError:
@@ -60,9 +67,10 @@ if __name__=='__main__':
         ax.plot(np.sort(myx),expo(np.sort(myx),popt[0],popt[1],popt[2]),label='Exponential Fit')
         print("CHANNEL: %i"%(cnum))
         print("1E7 GAIN VOLTAGE: %s"%(str(ChargeToV(1E7,popt[0],popt[1],popt[2]))))
+        print("5E6 GAIN VOLTAGE: %s"%(str(ChargeToV(5E6,popt[0],popt[1],popt[2]))))
         results["Channel"].append(cnum)
         results["Setpoint"].append(ChargeToV(1E7,popt[0],popt[1],popt[2]))
-        leg = ax.legend(loc=1,fontsize=15)
+        leg = ax.legend(loc=2,fontsize=15)
         leg.set_frame_on(True)
         leg.draw_frame(True)
         ax.set_xlabel("Voltage") 

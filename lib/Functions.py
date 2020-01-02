@@ -13,7 +13,18 @@ import matplotlib.pyplot as plt
 #                                    p0[6]*(1./np.sqrt(((p0[7]**2)*2*np.pi)))*np.exp(-(1./2.)*(x-p0[8])**2/p0[7]**2)
 #
 
-#NOTE: Should have a (n/s) for normalization.  Ignored, letting A fit in
+def WeightedMean(x,w):
+    return np.sum((w*x)/np.sum(w))
+
+def WeightedStd(x,w):
+    nonzerow = np.where(w > 0)[0]
+    M = np.sum(w[nonzerow])
+    WMean = WeightedMean(w,x)
+    return np.sqrt(np.sum(w*((x-WMean)**2))/(((M-1)/M)*np.sum(w)))
+
+def Poisson(x,mu):
+    return (mu**x)*np.exp(-mu)/sps.gamma(x)
+
 def OrderStat(x,A,n,mu,s):
     return gauss1(x,A,mu,s)*((1./2)*((1 + sps.erf((x-mu)/s)))**(n-1))
 
@@ -80,6 +91,15 @@ def EXP2SPE(x,C1,mu,s,f_C,f_mu,f_s,S_C,D,tau,f_t):#,S_mu,S_s):
             gauss1(x,S_C*2*C1,2*mu,s*np.sqrt(2)) # + \
             #gauss1(x,S_C*C1*2*f_C, 2*mu*f_mu,s*f_s*np.sqrt(2))
     return exponen + single_SPE + two_PE
+
+def EXP3SPE(x,C1,mu,s,f_C,f_mu,f_s,S_C,D,tau,f_t,S_C3):#,S_mu,S_s):
+    exponen = expo(x,D,tau,f_t)
+    single_SPE = SPEGaussians_NoExp(x,C1,mu,s,f_C,f_mu,f_s)
+    two_PE = gauss1(x,S_C*C1*(1+f_C),mu*(1+f_mu),s*np.sqrt(1+(f_s)**2)) +  \
+            gauss1(x,S_C*2*C1,2*mu,s*np.sqrt(2)) # + \
+            #gauss1(x,S_C*C1*2*f_C, 2*mu*f_mu,s*f_s*np.sqrt(2))
+    three_PE = gauss1(x,(S_C3)*2*S_C*C1,3*mu,s*np.sqrt(3))
+    return exponen + single_SPE + two_PE + three_PE
 
 def SPE2Peaks(x,C1,mu,s,f_C,f_mu,f_s,S_C):#,S_mu,S_s):
     single_SPE = SPEGaussians_NoExp(x,C1,mu,s,f_C,f_mu,f_s)

@@ -1,4 +1,24 @@
 {
+    "FERMIFIT": {
+        "LEDPINs": [
+        ], 
+        "RunNumber": [
+        ], 
+        "c1Mu": [
+        ],
+        "V": [
+        ], 
+        "Date": [
+        ], 
+        "c1Mu_unc": [
+        ], 
+        "c1Mu_StdErr": [
+        ], 
+        "Channel": [
+        ], 
+        "LEDsOn": [
+        ]
+    },
     "EXP3SPE": {
         "LEDPINs": [
         ], 

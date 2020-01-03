@@ -12,17 +12,13 @@ import scipy.optimize as scp
 #ANNIE PMT Charge distributions
 
 class FermiFitter(object):
-    def __init__(self,ROOTFile):
+    def __init__(self):
         print("INITIALIZING FERMIFITTER CLASS")
-        self.ROOTFile = ROOTFile
-        
-        self.ped_fit_x = None
-        self.ped_fit_y = None
-        self.ped_fit_y_unc = None
-        self.ped_mean = None
-        self.ped_sigma = None 
 
-    def ProcessHistogram(self,HistName):
+        self.BkgPed = {}
+        self.SPEPed = {}
+
+    def ProcessHistogram(self,rootfile,HistName):
         '''For the loaded ROOTFile, Returns a single ROOT histogram's bin data in
         numpy array format.
 
@@ -33,7 +29,7 @@ class FermiFitter(object):
         Output:
             bin_centers,bin_values,bin_value_uncertainties
         '''
-        thehist =  self.ROOTFile.Get(HistName)
+        thehist =  rootfile.Get(HistName)
         #Get histogram information into ntuples
         bin_centers, evts,evts_unc =(), (), () #pandas wants ntuples
         fit_bin_centers, fit_evts,fit_evts_unc =(), (), () #pandas wants ntuples
@@ -52,139 +48,126 @@ class FermiFitter(object):
 
         return hist_data
 
-    def _EstimatePedestalTotal(self,hist_data):
-        '''Estimates the total number of triggers in data that have zero PE.
-        Zero PE entries are modeled as a gaussian plus an exponential tail.
+    def _EstimatePedestalBins(self,bkg_hist_data,TotalToBackgroundPedRatio):
+        '''Estimates the total number of zero-PE triggers in the SPE data by
+        scaling the background data by the relative pedestal heights.
         '''
-        back_pedestal_ind = np.where(hist_data['bins'] < self.ped_mean + 1*self.ped_sigma)[0]
-        back_pedestal = np.sum(hist_data['bin_heights'][back_pedestal_ind])
-        front_pedestal_ind = np.where(hist_data['bins'] >=(self.ped_mean + 1*self.ped_sigma))[0]
-        front_pedestal = np.sum(self.ped_fit_y[front_pedestal_ind])
-        pedestal_estimate =np.sum(back_pedestal) + np.sum(front_pedestal)
-        return pedestal_estimate
+        scaled_hist_data = bkg_hist_data['bin_heights']*TotalToBackgroundPedRatio
+        return scaled_hist_data 
 
-    def _GetPedestalModel(self,hist_data):
-        '''Estimates the total number of triggers in data that have zero PE.
-        Zero PE entries are modeled as a gaussian plus an exponential tail.
-        '''
-        back_pedestal_ind = np.where(hist_data['bins'] < self.ped_mean)[0]
-        back_pedestal = hist_data['bin_heights'][back_pedestal_ind]
-        front_pedestal_ind = np.where(hist_data['bins'] >=self.ped_mean)[0]
-        front_pedestal = self.ped_fit_y[front_pedestal_ind]
-        pedestal_model =np.concatenate((back_pedestal,front_pedestal))
-        return pedestal_model
-
-    def _EstimateOccupancy(self,hist_data):
+    def _EstimateOccupancyFS(self,total_hist_data,bkg_hist_data,charge_cut):
         '''Estimates the occupancy of the PMT.  Occupancy is defined as the
         number of triggers with at least one PE.  Estimation of the pedestal 
         (0 PE events) is done as follows:
         1 - occupancy = sum(bins up to the pedestal mean) + sum(best fit
         to pedestal and pedestal tail beyond the mean)
         '''
-        if self.ped_fit_y is None:
-            print("NO PEDESTAL FIT!  You must run FitPedestal first.")
-            return -99999
-        pedestal_estimate = self._EstimatePedestalTotal(hist_data)
-        print("PEDESTAL TOTAL ESTIMATE: " + str(pedestal_estimate))
-        total_triggers = np.sum(hist_data['bin_heights'])
-        print("TOTAL TRIG ESTIMATE: " + str(total_triggers))
-        print("OCCUPANCY ESTIMATE: " + str(-np.log((pedestal_estimate/total_triggers))))
+        A_s_ind = np.where(total_hist_data["bins"]<charge_cut)[0]
+        A_b_ind = np.where(bkg_hist_data["bins"]<charge_cut)[0]
+        scale_factor = np.sum(total_hist_data["bin_heights"])/np.sum(bkg_hist_data["bin_heights"])
+        A_b = np.sum(bkg_hist_data["bin_heights"][A_b_ind]*scale_factor)
+        A_s = np.sum(total_hist_data["bin_heights"][A_s_ind])
+        N = np.sum(total_hist_data["bin_heights"])
+        zerope_estimate = (A_s*N)/(A_b)
+        total_triggers = np.sum(total_hist_data['bin_heights'])
+        return -np.log((zerope_estimate/total_triggers))
 
+    def _EstimateOccupancy(self,total_hist_data,bkg_hist_data,TotalToBkgPedRatio):
+        '''Estimates the occupancy of the PMT.  Occupancy is defined as the
+        number of triggers with at least one PE.  Estimation of the pedestal 
+        (0 PE events) is done as follows:
+        1 - occupancy = sum(bins up to the pedestal mean) + sum(best fit
+        to pedestal and pedestal tail beyond the mean)
+        '''
+        pedestal_estimate = np.sum(self._EstimatePedestalBins(bkg_hist_data,TotalToBkgPedRatio))
+        total_triggers = np.sum(total_hist_data['bin_heights'])
         return -np.log((pedestal_estimate/total_triggers))
 
-    def EstimateSPEMean(self,hist_data):
-        if self.ped_fit_y is None:
-            print("NO PEDESTAL FIT!  You must run FitPedestal first.")
-            return -99999
-        #mean_total = np.average(hist_data['bins'])
-        #mean_pedestal = np.average(self._EstimatePedestal(hist_data))
-        mean_total = fu.WeightedMean(hist_data['bins'],hist_data['bin_heights'])
-        mean_pedestal = fu.WeightedMean(hist_data['bins'],self._GetPedestalModel(hist_data))
-        print("TOTAL MEAN: " + str(mean_total))
-        print("PEDESTAL MEAN: " + str(mean_pedestal))
-        #Now, we estimate the photon occupancy distribution; modeled as poisson
-        occ = self._EstimateOccupancy(hist_data)
-        ##occupancy is the mean of the photon distribution
+    def EstimateSPEMean(self,total_hist_data,bkg_hist_data,ped_cutoff):
+        mean_total = fu.WeightedMean(total_hist_data['bins'],total_hist_data['bin_heights'])
+        mean_pedestal = fu.WeightedMean(bkg_hist_data['bins'],bkg_hist_data['bin_heights'])
+        occ = self._EstimateOccupancyFS(total_hist_data,bkg_hist_data,ped_cutoff)
         mean_photon_distribution = occ
-
         return ((mean_total - mean_pedestal)/mean_photon_distribution)
+    
+    def EstimateSPEVariance(self,total_hist_data,bkg_hist_data,ped_cutoff):
+        var_total = fu.WeightedStd(total_hist_data['bins'],total_hist_data['bin_heights'])
+        print("TOTAL VARIANCE: " + str(var_total))
+        var_pedestal = fu.WeightedStd(bkg_hist_data['bins'],bkg_hist_data['bin_heights'])
+        occ = self._EstimateOccupancyFS(total_hist_data,bkg_hist_data,ped_cutoff)
+        SPEMean = self.EstimateSPEMean(total_hist_data,bkg_hist_data,ped_cutoff)
+        variance_photon_distribution = occ
+        mean_photon_distribution = occ
+        numerator = var_total - var_pedestal - ((SPEMean**2) * variance_photon_distribution)
+        return (numerator/mean_photon_distribution)
 
-
-
-    def FitPedestal(self,hist_data,init_params,fit_range,fit_tail=False,exp_fit_range=[]):
+    def EstimateSPEError(self,total_hist_data,bkg_hist_data,ped_cutoff):
+        '''Approximation on the variance of the SPE mean due to statistical 
+        uncertainties.  This is Equation 21 in the original paper
         '''
-        Uses a Gaussian from the Functions library to attempt to fit
-        the pedestal peak of the distribution.  A fit range can be
-        given if helping down-select to the pedestal-dominant region.
+        #Calculate the releavant variables for the equation
+        occ = self._EstimateOccupancyFS(total_hist_data,bkg_hist_data,ped_cutoff)
+        SPEMean = self.EstimateSPEMean(total_hist_data,bkg_hist_data,ped_cutoff)
+        SPEVar = self.EstimateSPEVariance(total_hist_data,bkg_hist_data,ped_cutoff)
+        BKGVar = fu.WeightedStd(bkg_hist_data['bins'],bkg_hist_data['bin_heights'])
+        N = np.sum(total_hist_data["bin_heights"])
+        scale_factor = np.sum(total_hist_data["bin_heights"])/np.sum(bkg_hist_data["bin_heights"])
+        A_b_ind = np.where(bkg_hist_data["bins"]<ped_cutoff)[0]
+        A_b = np.sum(bkg_hist_data["bin_heights"][A_b_ind]*scale_factor)
+        f = A_b / N  #FIXME: I'm assuming A_b / N's true distribution is gaussian so the values the mean...
+        term1 = occ*(SPEMean**2 + SPEVar + 2*BKGVar)/(N*(occ**2))
+        term2 =((SPEMean**2) * (np.exp(occ) + 1 - 2*f))/(f*N*(occ**2))
+        return term1 + term2
 
-        Inputs:
 
-        hist_data [dict]
-            Ouput dictionary from the ProcessHistogram method.
+#Not used, but I'm keeping in case a use comes up later for it
+    #def FitPedestal(self,hist_data,init_params,fit_range):
+    #    '''
+    #    Uses a Gaussian from the Functions library to attempt to fit
+    #    the pedestal peak of the distribution.  A fit range can be
+    #    given if helping down-select to the pedestal-dominant region.
 
-        init_params [array]
-            Initial parameters to try fitting a single gaussian with.
-            Format is [amplitude,mean,sigma].
+    #    Inputs:
 
-        fit_range [array]
-            Range of values to perform fit across.  Helps to down-select
-            to the ped-only range.
-        '''
-        print("FITTING TO PEDESTAL NOW")
-        bin_centers = hist_data["bins"]
-        evts = hist_data["bin_heights"]
-        evts_unc = hist_data["bin_height_uncs"]
-        fit_bin_centers = copy.deepcopy(bin_centers)
-        fit_evts = copy.deepcopy(evts)
-        fit_evts_unc = copy.deepcopy(evts_unc)
-        if len(fit_range)>0:
-            fit_bin_inds = np.where((bin_centers > fit_range[0]) & (bin_centers < fit_range[1]))[0]
-            fit_bin_centers = fit_bin_centers[fit_bin_inds]
-            fit_evts = fit_evts[fit_bin_inds]
-            fit_vts_unc = fit_evts_unc[fit_bin_inds]
-        print("TRYING INITIAL PARAMS: " + str(init_params))
-        try:
-            popt, pcov = scp.curve_fit(fu.gauss1, bin_centers, evts, p0=init_params, maxfev=6000)
-        except RuntimeError:
-            print("NO SUCCESSFUL FIT TO PEDESTAL AFTER ITERATIONS...")
-            popt = None
-            pcov = None
-            return popt, pcov, bin_centers, evts, evts_unc
-        self.ped_fit_x = bin_centers
-        self.ped_fit_y =fu.gauss1(self.ped_fit_x,popt[0],popt[1],popt[2])
-        perr = np.diag(pcov)
-        self.ped_fit_y_unc =abs(fu.gauss1(self.ped_fit_x,popt[0]+perr[0],popt[1],popt[2]+perr[2]) - 
-                               fu.gauss1(self.ped_fit_x,popt[0]-perr[0],popt[1],popt[2]-perr[2]))
-        self.ped_mean = popt[1]
-        self.ped_sigma = popt[2]
-        #self.ped_fit_y =fu.OrderStat(self.ped_fit_x,popt[0],popt[1],popt[2],popt[3]) 
-        #self.ped_mean = popt[2]
-        #self.ped_sigma = popt[3]
-        if fit_tail is True:
-            exp_ind = []
-            if len(exp_fit_range) > 0:
-                exp_ind = np.where((bin_centers > exp_fit_range[0]) & (bin_centers < exp_fit_range[1]))[0]
-            else:
-                exp_ind = np.where((bin_centers > self.ped_mean+ 1*self.ped_sigma) & (bin_centers < self.ped_mean + 4*self.ped_sigma))[0]
-            exp_bins = bin_centers[exp_ind]
-            exp_evts = evts[exp_ind] #- self.ped_fit_y[exp_ind]
-            exp_evts_unc = evts_unc[exp_ind]
-            #exp_init_params = [popt[0]/popt[2],popt[2],10*popt[1]]
-            #exp_init_params = [exp_evts[0],popt[2],10*popt[1]]
-            exp_init_params = [popt[0],popt[2],10*popt[1]]
-            print("EXPONENTIAL FIT: INIT PARAMS: " + str(exp_init_params))
-            try:
-                eopt, ecov = scp.curve_fit(lambda x,D,tau,t: fu.gaussPlusExpo(x,popt[0],popt[1],popt[2],D,tau,t), 
-                        exp_bins, exp_evts, p0=exp_init_params, sigma=exp_evts_unc, maxfev=12000)
-                #eopt, ecov = scp.curve_fit(lambda x,D,tau,t: D*np.exp(-(x-t)/tau), 
-                #        exp_bins, exp_evts, p0=exp_init_params, maxfev=12000)
-            except RuntimeError:
-                print("NO SUCCESSFUL FIT TO PEDESTAL AFTER ITERATIONS...")
-                popt = None
-                pcov = None
-                return popt, pcov, bin_centers, evts, evts_unc
-            popt = np.concatenate((popt,eopt))
-            #
-            self.ped_fit_y =fu.gaussPlusExpo(self.ped_fit_x,popt[0],popt[1],
-                    popt[2],eopt[0],eopt[1],eopt[2]) 
-        return popt, pcov, self.ped_fit_y, self.ped_fit_y_unc
+    #    hist_data [dict]
+    #        Ouput dictionary from the ProcessHistogram method.
+
+    #    init_params [array]
+    #        Initial parameters to try fitting a single gaussian with.
+    #        Format is [amplitude,mean,sigma].
+
+    #    fit_range [array]
+    #        Range of values to perform fit across.  Helps to down-select
+    #        to the ped-only range.
+    #    '''
+    #    ped_fit = {"x": [], "y": [], "y_unc":[],"popt":[],
+    #            "pcov":[]}
+
+    #    print("FITTING TO PEDESTAL NOW")
+    #    bin_centers = hist_data["bins"]
+    #    evts = hist_data["bin_heights"]
+    #    evts_unc = hist_data["bin_height_uncs"]
+    #    fit_bin_centers = copy.deepcopy(bin_centers)
+    #    fit_evts = copy.deepcopy(evts)
+    #    fit_evts_unc = copy.deepcopy(evts_unc)
+    #    if len(fit_range)>0:
+    #        fit_bin_inds = np.where((bin_centers > fit_range[0]) & (bin_centers < fit_range[1]))[0]
+    #        fit_bin_centers = fit_bin_centers[fit_bin_inds]
+    #        fit_evts = fit_evts[fit_bin_inds]
+    #        fit_vts_unc = fit_evts_unc[fit_bin_inds]
+    #    print("TRYING INITIAL PARAMS: " + str(init_params))
+    #    try:
+    #        popt, pcov = scp.curve_fit(fu.gauss1, bin_centers, evts, p0=init_params, maxfev=6000)
+    #    except RuntimeError:
+    #        print("NO SUCCESSFUL FIT TO PEDESTAL AFTER ITERATIONS...")
+    #        popt = None
+    #        pcov = None
+    #        return popt, pcov, bin_centers, evts, evts_unc
+    #    ped_fit["x"] = bin_centers
+    #    ped_fit["y"] = fu.gauss1(ped_fit["x"],popt[0],popt[1],popt[2])
+    #    perr = np.diag(pcov)
+    #    ped_fit["y_unc"] =abs(fu.gauss1(ped_fit["x"],popt[0]+perr[0],popt[1],popt[2]+perr[2]) - 
+    #                           fu.gauss1(ped_fit["x"],popt[0]-perr[0],popt[1],popt[2]-perr[2]))
+    #    ped_fit["popt"] = popt
+    #    ped_fit["pcov"] = pcov
+    #    return ped_fit

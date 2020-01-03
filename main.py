@@ -22,6 +22,10 @@ if __name__=='__main__':
         print(" ####### APPENDING NEW INFO TO GAIN DATABASE ####### ")
     with open(ap.APPEND,"r") as f:
         myfile = ROOT.TFile.Open(ap.APPEND)
+    if ap.BKG is not None:
+        print(" ####### LOADING BACKGROUND RUN FOR USE IN FERMI FITTER ####### ")
+    with open(ap.BKG,"r") as f:
+        bkgfile = ROOT.TFile.Open(ap.BKG)
 
     #FIXME: have this be a configurable or a file path added by user
     with open("./DB/TranspChannels.txt","r") as f:
@@ -31,7 +35,7 @@ if __name__=='__main__':
     channel_list = np.array(chans)
     off_list = [333,342,344,345,346,349,352,359,431,444,445]
     channel_list = np.arange(331,470)
-    channel_list = np.array([353])
+    channel_list = np.array([390,391,392])
     #channel_list = np.setdiff1d(channel_list,off_list)
     #hamamatsus = np.arange(372,416,1)
     #keep = np.array([353,358,361,362,366,426,455])
@@ -43,16 +47,20 @@ if __name__=='__main__':
     with open("./DB/InitialParams.json","r") as f:
         init_params = json.load(f)
 
-
     if ap.FIT == "Simple":
         fittype = str(raw_input("Fit type to perform to PE peaks (Gauss2, Gauss3,SPE,EXP2SPE,EXP3SPE,SPE2Peaks,SPE3Peaks): "))
         if fittype not in ["Gauss2","Gauss3","SPE","SPE2Peaks","SPE3Peaks","EXP2SPE","EXP3SPE"]:
             print("Please input a valid fitting approach to take.")
             sys.exit(0)
-        with open(ap.DB) as dbfile:
-            db = json.load(dbfile)
-            fitdata = db[fittype]
-            dbfile.close()
+    if ap.FIT == "FERMI":
+        fittype = "FERMIFIT"
+
+    with open(ap.DB) as dbfile:
+        db = json.load(dbfile)
+        fitdata = db[fittype]
+        dbfile.close()
+
+    if ap.FIT == "Simple":
         #Initialize Gain-Fitting class
         GainFinder = gf.GainFinder(myfile)
         if(fittype == "Gauss2"):
@@ -241,7 +249,7 @@ if __name__=='__main__':
     if ap.FIT == "FERMI":
         print("TRYING FERMI FIT")
         #Loop through channels in file and fit gains to each
-        FermiFitter = ff.FermiFitter(myfile)
+        FermiFitter = ff.FermiFitter()
         for channel_num in channel_list:
             print("FITTING FOR CHANNEL %i"%(channel_num))
             thehist = HIST_TITLETEMPLATE.replace("CNUM",str(channel_num))
@@ -250,39 +258,46 @@ if __name__=='__main__':
                 continue
           
             #Get the histogram data in numpy array format
-            hist_data = FermiFitter.ProcessHistogram(thehist)
+            tot_hist_data = FermiFitter.ProcessHistogram(myfile,thehist)
+            bkg_hist_data = FermiFitter.ProcessHistogram(bkgfile,thehist)
 
-            #Fit photoelectron peaks
-            FIT_TAIL =False
             FitComplete = False
-            PedFitComplete = False
-            GoodPedFit = False
-            exp_range = []
-
-            while not PedFitComplete:
-                #Fit pedestal and exponential tail from failed dynode hits
-                print("PEDESTAL PARAMS: " + str(init_params["PedParams"]))
-                pedopt,pedcov,pedydata,pedyunc = FermiFitter.FitPedestal(
-                        hist_data, init_params["PedParams"],init_params["PedFitRange"],
-                        fit_tail = FIT_TAIL, exp_fit_range = exp_range)
-                if pedopt is None:
-                    print("PEDESTAL FIT FULLY FAILED... LIKELY A BUNK CHANNEL.  SKIPPING")
-                    PedFitComplete = True
-                    GoodPedFit = False
+            GoodFit = False
+            TotPedFitComplete = False
+            TotGoodPedFit = False
+            BkgPedFitComplete = False
+            BkgGoodPedFit = False
+            fit_range = init_params["PedFitRange"]
+            PED_CUTOFF = 0.00025
+            SPEMean = None
+            SPEVariance = None
+            SPEMeanErr = None
+            while not FitComplete:
+                SPEMean = FermiFitter.EstimateSPEMean(tot_hist_data,bkg_hist_data,PED_CUTOFF)
+                print("SPE MEAN ESTIMATE: " + str(SPEMean))
+                SPEVariance = FermiFitter.EstimateSPEVariance(tot_hist_data,bkg_hist_data,PED_CUTOFF)
+                print("SPE VARIANCE ESTIMATE: " + str(SPEVariance))
+                SPEMeanErr = FermiFitter.EstimateSPEError(tot_hist_data,bkg_hist_data,PED_CUTOFF)
+                print("SPE ERROR ESTIMATE: " + str(SPEMeanErr))
+                #pl.PlotDataAndSPEMean(tot_hist_data,totped_fit,bkg_hist_data,bkgped_fit,SPEMean)
+                pl.PlotDataAndSPEMean_NoFit(tot_hist_data,bkg_hist_data,SPEMean)
+                fit_good = str(raw_input("Happy with this final fit? [y/N]:"))
+                if fit_good in ["y","Y","yes","Yes","YES"]:
                     FitComplete = True
-                    GoodFit = False
-                    continue
-                pl.PlotPedestal(hist_data['bins'],hist_data['bin_heights'],fu.gauss1,hist_data['bins'],pedopt,"GaussPlusExpo")
-                ped_good = str(raw_input("Happy with pedestal fit? [y/N]:"))
-                if ped_good in ["y","Y","yes","Yes","YES"]:
-                    PedFitComplete = True
-                    GoodPedFit = True
+                    GoodFit = True
                 else:
-                    if FIT_TAIL:
-                        fit_min = str(raw_input("Exponential window min: "))
-                        fit_max = str(raw_input("Exponential window max: "))
-                        exp_fit_range = [float(fit_min),float(fit_max)]
-            #Now, estimate the 1SPE point
-            SPEMean = FermiFitter.EstimateSPEMean(hist_data)
-            print("SPE MEAN ESTIMATE: " + str(SPEMean))
-            pl.PlotDataAndSPEMean(hist_data,SPEMean)
+                    print("That's too bad... continuing")
+                    FitComplete = True
+            #Now, we save the results
+            if GoodFit:
+                db[fittype]["Channel"].append(channel_num)
+                db[fittype]["RunNumber"].append(ap.RUNNUM)
+                db[fittype]["LEDsOn"].append(ap.LED)
+                db[fittype]["LEDPINs"].append(ap.PIN)
+                db[fittype]["Date"].append(ap.DATE)
+                db[fittype]["V"].append(int(ap.VOLTS))
+                db[fittype]["c1Mu"].append(SPEMean)
+                db[fittype]["c1Mu_unc"].append(SPEVariance)
+                db[fittype]["c1Mu_StdErr"].append(SPEMeanErr)
+        with open(ap.DB,"w") as dbfile:
+            json.dump(db,dbfile,sort_keys=False, indent=4)

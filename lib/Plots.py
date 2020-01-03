@@ -155,8 +155,25 @@ def PlotHistPEDAndPEs_V2(xdata,ydata,pedparams,peparams,fittype):
     leg.draw_frame(True)
     plt.show()
 
-def PlotDataAndSPEMean(hist_data,SPEMean):
-    plt.plot(hist_data["bins"],hist_data["bin_heights"],linestyle='None',marker='o',markersize=7,label='data')
+def PlotDataAndSPEMean(tot_hist_data,totped_fit, bkg_hist_data,bkgped_fit,SPEMean):
+    plt.plot(tot_hist_data["bins"],tot_hist_data["bin_heights"],linestyle='None',marker='o',markersize=7,label='signal data')
+    TotalToBkgPedRatio = totped_fit['popt'][0]/bkgped_fit['popt'][0]
+    plt.plot(bkg_hist_data["bins"],bkg_hist_data["bin_heights"]*TotalToBkgPedRatio,linestyle='None',marker='o',markersize=7,label='scaled bkg data')
+    plt.axvline(x=SPEMean,linewidth=4,label='SPE Estimate')
+    plt.xlabel("Charge (pC)")
+    plt.ylabel("Entries")
+    plt.ylim(ymin=0.9)
+    plt.yscale("log")
+    plt.title("Fermi method SPE estimation compared with data")
+    leg = plt.legend(loc=1,fontsize=24)
+    leg.set_frame_on(True)
+    leg.draw_frame(True)
+    plt.show()
+
+def PlotDataAndSPEMean_NoFit(tot_hist_data, bkg_hist_data,SPEMean):
+    plt.plot(tot_hist_data["bins"],tot_hist_data["bin_heights"],linestyle='None',marker='o',markersize=7,label='signal data')
+    TotalToBkgPedRatio = np.sum(tot_hist_data['bin_heights'])/np.sum(bkg_hist_data['bin_heights'])
+    plt.plot(bkg_hist_data["bins"],bkg_hist_data["bin_heights"]*TotalToBkgPedRatio,linestyle='None',marker='o',markersize=7,label='scaled bkg data')
     plt.axvline(x=SPEMean,linewidth=4,label='SPE Estimate')
     plt.xlabel("Charge (pC)")
     plt.ylabel("Entries")

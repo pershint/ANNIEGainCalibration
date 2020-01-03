@@ -19,7 +19,7 @@ def WeightedMean(x,w):
 def WeightedStd(x,w):
     nonzerow = np.where(w > 0)[0]
     M = np.sum(w[nonzerow])
-    WMean = WeightedMean(w,x)
+    WMean = WeightedMean(x,w)
     return np.sqrt(np.sum(w*((x-WMean)**2))/(((M-1)/M)*np.sum(w)))
 
 def Poisson(x,mu):

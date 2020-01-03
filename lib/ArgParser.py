@@ -18,6 +18,9 @@ parser.add_argument("-D", "--database",action="store",dest="DB",
 parser.add_argument("-A", "--append",action="store",dest="APPEND",
                   type=str,
                   help="Path to a ROOT file holding new charge information for tubes")
+parser.add_argument("-B", "--bkgrun",action="store",dest="BKG",
+                  type=str,
+                  help="Path to a ROOT file holding a background run for tubes (used in Fermi Fitter)")
 parser.add_argument("-r", "--runnumber",action="store",dest="RUNNUM",
                   type=str,
                   help="Specify the run number associated with this file")
@@ -35,11 +38,12 @@ parser.add_argument("-p", "--PIN",action="store",dest="PIN",
                   help="Specify the PIN setpoint for all LEDs")
 
 
-parser.set_defaults(DB="./DB/TransparencyGains.json",APPEND=None,debug="False",
+parser.set_defaults(DB="./DB/TransparencyGains.json",APPEND=None,BKG=None,debug="False",
         RUNNUM=None,DATE=None,LED=None,PIN=None,FIT="Simple")
 args = parser.parse_args()
 DB = args.DB
 APPEND = args.APPEND
+BKG = args.BKG
 DEBUG = args.debug
 RUNNUM = args.RUNNUM
 DATE = args.DATE
@@ -58,4 +62,6 @@ if PIN is None:
     PIN = str(raw_input("PIN setpoint for LEDs: "))
 if VOLTS is None:
     VOLTS = str(raw_input("Voltage setpoint for PMTs: "))
-
+if BKG is None and FIT=='FERMI':
+    print("You must supply a background run if using the Fermi fitter approach!")
+    sys.exit(0)

@@ -9,7 +9,7 @@ import json
 
 sns.set_context("poster")
 
-DATADIR = "./DB/GainFits/Final/"
+DATADIR = "./DB/GainFits/"
 
 def expo(x,A,l,C):
     return A*np.exp(x/l) + C
@@ -31,7 +31,6 @@ if __name__=='__main__':
     print(df)
     TUBES = np.array(list(set(df["Channel"])))
     TUBES = np.arange(332,464,1)
-    TUBES = np.array([390])
     results = {"Channel":[], "Setpoint":[]}
     failures = {"Channel":[]}
     for cnum in TUBES:

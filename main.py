@@ -24,8 +24,8 @@ if __name__=='__main__':
         myfile = ROOT.TFile.Open(ap.APPEND)
     if ap.BKG is not None:
         print(" ####### LOADING BACKGROUND RUN FOR USE IN FERMI FITTER ####### ")
-    with open(ap.BKG,"r") as f:
-        bkgfile = ROOT.TFile.Open(ap.BKG)
+        with open(ap.BKG,"r") as f:
+            bkgfile = ROOT.TFile.Open(ap.BKG)
 
     #FIXME: have this be a configurable or a file path added by user
     with open("./DB/TranspChannels.txt","r") as f:
@@ -33,9 +33,10 @@ if __name__=='__main__':
         for j,l in enumerate(chans):
             chans[j]=int(chans[j].rstrip("\n"))
     channel_list = np.array(chans)
-    off_list = [333,342,344,345,346,349,352,359,431,444,445]
-    channel_list = np.arange(331,470)
-    channel_list = np.array([390,391,392])
+    off_list = [333,342,345,346,349,352,359,374,394,431,444,445]
+    channel_list = np.array([353,355,359])
+    #channel_list = np.arange(372,469,1)#372,469
+    #channel_list = np.arange(352,372)
     #channel_list = np.setdiff1d(channel_list,off_list)
     #hamamatsus = np.arange(372,416,1)
     #keep = np.array([353,358,361,362,366,426,455])
@@ -161,6 +162,9 @@ if __name__=='__main__':
                 print("SIGMA LIMIT IS: " + str(pedopt[2]))
                 GainFinder.setTauMax(4*pedopt[2])
                 init_mean = str(raw_input("Guess at SPE mean: "))
+                if(float(init_mean) >=0.006):
+                    print("TRY LESS THAN 0.006")
+                    continue
                 try:
                     GainFinder.setInitMean(float(init_mean))
                 except ValueError:
@@ -199,14 +203,34 @@ if __name__=='__main__':
                         FitComplete = True
                         GoodFit = False
 
-            #Since we've made it out, save to the DB
             if GoodFit:
+                #With the pedestal and 1PE peak fit, estimate the PV ratio
+                Valley_inds = np.where((xdata>pedopt[1]) & (xdata<popt[1]))[0]
+                Valley_min = np.argmin(ydata[Valley_inds])
+                print("VALLEY MIN AT BIN: " + str(xdata[Valley_min]))
+                Valley_estimate_bins = ydata[np.arange(Valley_min-1,Valley_min+4,1)]
+                Valley_estimate = np.average(Valley_estimate_bins)
+                print("VALLEY MEAN ESTIMATE: " + str(Valley_estimate))
+                V_unc = np.std(Valley_estimate_bins)
+                Peak_max = np.abs(xdata-popt[1]).argmin()
+                print("PEAK MAX AT BIN: " + str(xdata[Peak_max]))
+                Peak_estimate_bins = ydata[np.arange(Peak_max-2,Peak_max+3,1)]
+                Peak_estimate = np.average(Peak_estimate_bins)
+                print("PEAK MEAN ESTIMATE: " + str(Peak_estimate))
+                P_unc = np.std(Peak_estimate_bins)
+                print("P/V RATIO ESTIMATE: " + str(Peak_estimate/Valley_estimate))
+                PV_unc = (Peak_estimate/Valley_estimate)*np.sqrt((1/V_unc)**2 + (1/P_unc)**2)
+                print("P/V RATIO UNC: " + str(PV_unc))
+
+                #Since we've made it out, save to the DB
                 db[fittype]["Channel"].append(channel_num)
                 db[fittype]["RunNumber"].append(ap.RUNNUM)
                 db[fittype]["LEDsOn"].append(ap.LED)
                 db[fittype]["LEDPINs"].append(ap.PIN)
                 db[fittype]["Date"].append(ap.DATE)
                 db[fittype]["V"].append(int(ap.VOLTS))
+                db[fittype]["PV"].append(Peak_estimate/Valley_estimate)
+                db[fittype]["PV_unc"].append(PV_unc)
                 errs = np.sqrt(np.diag(pcov))
                 if fittype in ["Gauss2","Gauss3"]:
                     db[fittype]["c1Height"].append(popt[0])
@@ -268,10 +292,15 @@ if __name__=='__main__':
             BkgPedFitComplete = False
             BkgGoodPedFit = False
             fit_range = init_params["PedFitRange"]
-            PED_CUTOFF = 0.00025
             SPEMean = None
             SPEVariance = None
             SPEMeanErr = None
+            ped_fit = FermiFitter.FitPedestal(bkg_hist_data,init_params["PedParams"],init_params["PedFitRange"])
+            if ped_fit['popt'] is not None:
+                PED_CUTOFF = ped_fit['popt'][1] + 4*ped_fit['popt'][2]
+            else:
+                print("NO GOOD PED FIT.  SETTING PED CUTOFF OF 0.0002")
+                PED_CUTOFF = 0.00025
             while not FitComplete:
                 SPEMean = FermiFitter.EstimateSPEMean(tot_hist_data,bkg_hist_data,PED_CUTOFF)
                 print("SPE MEAN ESTIMATE: " + str(SPEMean))
@@ -280,7 +309,7 @@ if __name__=='__main__':
                 SPEMeanErr = FermiFitter.EstimateSPEError(tot_hist_data,bkg_hist_data,PED_CUTOFF)
                 print("SPE ERROR ESTIMATE: " + str(SPEMeanErr))
                 #pl.PlotDataAndSPEMean(tot_hist_data,totped_fit,bkg_hist_data,bkgped_fit,SPEMean)
-                pl.PlotDataAndSPEMean_NoFit(tot_hist_data,bkg_hist_data,SPEMean)
+                pl.PlotDataAndSPEMean_NoFit(tot_hist_data,bkg_hist_data,SPEMean,PED_CUTOFF)
                 fit_good = str(raw_input("Happy with this final fit? [y/N]:"))
                 if fit_good in ["y","Y","yes","Yes","YES"]:
                     FitComplete = True
@@ -290,6 +319,7 @@ if __name__=='__main__':
                     FitComplete = True
             #Now, we save the results
             if GoodFit:
+                #With the pedestal and 1PE peak fit, estimate the PV ratio
                 db[fittype]["Channel"].append(channel_num)
                 db[fittype]["RunNumber"].append(ap.RUNNUM)
                 db[fittype]["LEDsOn"].append(ap.LED)

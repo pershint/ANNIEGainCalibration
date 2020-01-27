@@ -121,7 +121,7 @@ def PlotHistPEDAndPEs_V2(xdata,ydata,pedparams,peparams,fittype):
     if fittype in ["SPE2Peaks","EXP2SPE","EXP3SPE"]:
         y2spe = fu.gauss1(xdata, peparams[6]*peparams[0]*(1+peparams[3]), 
                                  peparams[1]*(1+peparams[4]),peparams[2]*np.sqrt(1+(peparams[5]**2))) + \
-                fu.gauss1(xdata, peparams[6]*2*peparams[0],peparams[1]*2*peparams[1],peparams[2]*np.sqrt(2))
+                fu.gauss1(xdata, peparams[6]*2*peparams[0],2*peparams[1],peparams[2]*np.sqrt(2))
         ytot = ytot+y2spe
         plt.plot(xdata,y2spe,marker='None',label='2PE')
     if fittype in ["EXP3SPE"]:
@@ -170,11 +170,12 @@ def PlotDataAndSPEMean(tot_hist_data,totped_fit, bkg_hist_data,bkgped_fit,SPEMea
     leg.draw_frame(True)
     plt.show()
 
-def PlotDataAndSPEMean_NoFit(tot_hist_data, bkg_hist_data,SPEMean):
+def PlotDataAndSPEMean_NoFit(tot_hist_data, bkg_hist_data,SPEMean,PED_CUTOFF):
     plt.plot(tot_hist_data["bins"],tot_hist_data["bin_heights"],linestyle='None',marker='o',markersize=7,label='signal data')
     TotalToBkgPedRatio = np.sum(tot_hist_data['bin_heights'])/np.sum(bkg_hist_data['bin_heights'])
     plt.plot(bkg_hist_data["bins"],bkg_hist_data["bin_heights"]*TotalToBkgPedRatio,linestyle='None',marker='o',markersize=7,label='scaled bkg data')
     plt.axvline(x=SPEMean,linewidth=4,label='SPE Estimate')
+    plt.axvline(x=PED_CUTOFF,linewidth=4,label='Pedestal Cut',color='red')
     plt.xlabel("Charge (pC)")
     plt.ylabel("Entries")
     plt.ylim(ymin=0.9)
